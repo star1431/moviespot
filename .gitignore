@@ -14,10 +14,9 @@ pnpm-debug.log*
 lerna-debug.log*
 
 # env
-.env
-.env.*
-!.env.dev.example
-!.env.sample
+.env.dev
+.env.local
+.env.prod
 
 # macOS
 .DS_Store
