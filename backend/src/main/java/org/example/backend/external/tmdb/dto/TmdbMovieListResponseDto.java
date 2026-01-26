@@ -1,4 +1,4 @@
-package org.example.backend.dto.tmdb;
+package org.example.backend.external.tmdb.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -11,3 +11,4 @@ public record TmdbMovieListResponseDto(
         @JsonProperty("total_results") Integer totalResults
 ) {
 }
+

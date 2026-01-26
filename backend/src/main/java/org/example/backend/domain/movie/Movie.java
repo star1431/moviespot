@@ -2,6 +2,8 @@ package org.example.backend.domain.movie;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.EnumType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -11,7 +13,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -36,13 +37,19 @@ public class Movie {
 
     private String posterUrl;
 
+    @Column(columnDefinition = "TEXT")
     private String overview;
 
     private Float tmdbRate;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "movie_type")
+    private MovieType movieType; // null 허용 (사용자가 저장한 영화는 타입 없음)
+
     @CreationTimestamp
+    @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp
+    @Column(nullable = true)
     private LocalDateTime updatedAt;
 }

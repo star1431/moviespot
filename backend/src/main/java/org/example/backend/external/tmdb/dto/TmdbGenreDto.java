@@ -1,4 +1,4 @@
-package org.example.backend.dto.tmdb;
+package org.example.backend.external.tmdb.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import org.example.backend.domain.genre.Genre;
