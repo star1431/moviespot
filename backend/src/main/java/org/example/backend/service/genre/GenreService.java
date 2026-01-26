@@ -5,7 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.example.backend.domain.genre.Genre;
 import org.example.backend.domain.genre.UserGenre;
 import org.example.backend.domain.user.User;
-import org.example.backend.dto.genre.GenreDto;
+import org.example.backend.dto.genre.GenreResponseDto;
 import org.example.backend.external.tmdb.client.TmdbClient;
 import org.example.backend.external.tmdb.dto.TmdbGenreDto;
 import org.example.backend.repository.genre.GenreRepository;
@@ -74,11 +74,11 @@ public class GenreService {
 
     /** 내 관심 장르 목록 조회 */
     @Transactional(readOnly = true)
-    public List<GenreDto> getMyGenres(Long userId) {
+    public List<GenreResponseDto> getMyGenres(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다: " + userId));
         return userGenreRepository.findByUser(user).stream()
-                .map(ug -> new GenreDto(ug.getGenre().getTmdbGenreId(), ug.getGenre().getName()))
+                .map(ug -> new GenreResponseDto(ug.getGenre().getTmdbGenreId(), ug.getGenre().getName()))
                 .collect(Collectors.toList());
     }
 
