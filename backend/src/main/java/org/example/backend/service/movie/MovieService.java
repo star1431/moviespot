@@ -7,7 +7,9 @@ import org.example.backend.domain.movie.MovieType;
 import org.example.backend.domain.movie.UserRating;
 import org.example.backend.domain.movie.WatchedMovie;
 import org.example.backend.domain.user.User;
-import org.example.backend.dto.movie.MovieDetailDto;
+import org.example.backend.dto.common.SliceResponseDto;
+import org.example.backend.dto.movie.MovieDetailResponseDto;
+import org.example.backend.dto.movie.MovieUserRatingResponseDto;
 import org.example.backend.dto.movie.MovieResponseDto;
 import org.example.backend.dto.movie.UserRatingRequestDto;
 import org.example.backend.external.tmdb.client.TmdbClient;
@@ -90,24 +92,67 @@ public class MovieService {
         return getMoviesFromDb(MovieType.NOW_PLAYING, pageable);
     }
 
-    /** 영화 상세 조회 (사용자 정보 포함) */
+    /** 영화 상세 조회 */
     @Transactional(readOnly = true)
-    public MovieDetailDto getMovieDetail(Long tmdbId, Long userId) {
+    public MovieDetailResponseDto getMovieDetail(Long tmdbId, Long userId, int commentPage, int commentSize) {
         TmdbMovieResponseDto tmdbMovie = tmdbClient.fetchMovieDetail(tmdbId);
+
+        int safePage = Math.max(0, commentPage);
+        int safeSize = Math.max(1, Math.min(commentSize, 50));
+
         
+        List<UserRating> fetched = userRatingRepository
+                .findByMovieTmdbIdOrderByCreatedAtDesc(tmdbId, PageRequest.of(safePage, safeSize + 1));
+
+        boolean hasNext = fetched.size() > safeSize;
+        List<UserRating> pageContent = hasNext ? fetched.subList(0, safeSize) : fetched;
+
+        List<MovieUserRatingResponseDto> ratingDtos = pageContent.stream()
+                .map(r -> new MovieUserRatingResponseDto(
+                        r.getUser().getUserId(),
+                        r.getUser().getNickname(),
+                        r.getScore(),
+                        r.getComment(),
+                        r.isRecommended(),
+                        r.getCreatedAt()
+                ))
+                .collect(Collectors.toList());
+
+        SliceResponseDto<MovieUserRatingResponseDto> userRatings =
+                new SliceResponseDto<>(ratingDtos, safePage, safeSize, hasNext);
+
+        if (userId == null) {
+            return new MovieDetailResponseDto(
+                    tmdbMovie.id(),
+                    tmdbMovie.title(),
+                    tmdbMovie.releaseDate(),
+                    tmdbMovie.posterPath(),
+                    tmdbMovie.overview(),
+                    tmdbMovie.voteAverage(),
+                    userRatings,
+                    null,
+                    null,
+                    null,
+                    null,
+                    false,
+                    null
+            );
+        }
+
         Optional<UserRating> userRatingOpt = userRatingRepository
                 .findByUserUserIdAndMovieTmdbId(userId, tmdbId);
-        
+
         Optional<WatchedMovie> watchedMovieOpt = watchedMovieRepository
                 .findByUserUserIdAndMovieTmdbId(userId, tmdbId);
-        
-        return new MovieDetailDto(
+
+        return new MovieDetailResponseDto(
                 tmdbMovie.id(),
                 tmdbMovie.title(),
                 tmdbMovie.releaseDate(),
                 tmdbMovie.posterPath(),
                 tmdbMovie.overview(),
                 tmdbMovie.voteAverage(),
+                userRatings,
                 userRatingOpt.map(UserRating::getCreatedAt).orElse(null),
                 userRatingOpt.map(UserRating::getScore).orElse(null),
                 userRatingOpt.map(UserRating::getComment).orElse(null),
@@ -117,10 +162,10 @@ public class MovieService {
         );
     }
 
-    /** 영화 상세 조회 (단순 api) */
+    /** 영화 상세 조회 (비로그인) */
     @Transactional(readOnly = true)
-    public TmdbMovieResponseDto getMovieDetail(Long tmdbId) {
-        return tmdbClient.fetchMovieDetail(tmdbId);
+    public MovieDetailResponseDto getMovieDetail(Long tmdbId, int commentPage, int commentSize) {
+        return getMovieDetail(tmdbId, null, commentPage, commentSize);
     }
 
     /** 사용자 평점/코멘트 저장 */

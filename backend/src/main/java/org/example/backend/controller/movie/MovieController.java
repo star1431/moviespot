@@ -1,9 +1,8 @@
 package org.example.backend.controller.movie;
 
 import lombok.RequiredArgsConstructor;
-import org.example.backend.dto.movie.MovieDetailDto;
+import org.example.backend.dto.movie.MovieDetailResponseDto;
 import org.example.backend.dto.movie.MovieResponseDto;
-import org.example.backend.external.tmdb.dto.TmdbMovieResponseDto;
 import org.example.backend.security.CustomPrincipal;
 import org.example.backend.service.movie.MovieService;
 import org.springframework.data.domain.Pageable;
@@ -31,19 +30,16 @@ public class MovieController {
         return ResponseEntity.ok(movieService.getNowPlayingMovies(pageable));
     }
 
-    /** 영화 상세 조회 (단순 api) */
+    /** 영화 상세 조회 */
     @GetMapping("/{tmdbId}")
-    public ResponseEntity<TmdbMovieResponseDto> getMovieDetail(@PathVariable Long tmdbId) {
-        return ResponseEntity.ok(movieService.getMovieDetail(tmdbId));
-    }
-
-    /** 영화 상세 조회 (사용자 정보 포함) */
-    @GetMapping("/{tmdbId}/detail")
-    public ResponseEntity<MovieDetailDto> getMovieDetailWithUser(
+    public ResponseEntity<MovieDetailResponseDto> getMovieDetail(
             @PathVariable Long tmdbId,
-            @AuthenticationPrincipal CustomPrincipal customPrincipal
+            @AuthenticationPrincipal CustomPrincipal customPrincipal,
+            @RequestParam(defaultValue = "0") int commentPage,
+            @RequestParam(defaultValue = "10") int commentSize
     ) {
-        return ResponseEntity.ok(movieService.getMovieDetail(tmdbId, customPrincipal.getUserId()));
+        Long userId = customPrincipal != null ? customPrincipal.getUserId() : null;
+        return ResponseEntity.ok(movieService.getMovieDetail(tmdbId, userId, commentPage, commentSize));
     }
 }
 

@@ -5,19 +5,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.example.backend.domain.user.User;
-import org.example.backend.dto.common.MessageResponseDto;
 import org.example.backend.dto.user.LoginRequestDto;
 import org.example.backend.dto.user.SignupRequestDto;
-import org.example.backend.security.CustomPrincipal;
 import org.example.backend.security.JwtTokenizer;
 import org.example.backend.service.user.AuthService;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.HashMap;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -30,16 +25,16 @@ public class AuthController {
     @Value("${jwt.refresh-expiration}")
     private long refreshExpirationMs;
 
-    /** 일반 회원가입 */
+    /** 회원가입 */
     @PostMapping("/signup")
-    public ResponseEntity<MessageResponseDto> signup(@RequestBody SignupRequestDto requestDto) {
+    public ResponseEntity<Void> signup(@RequestBody SignupRequestDto requestDto) {
         authService.signup(requestDto);
-        return ResponseEntity.ok(new MessageResponseDto("회원가입 완료"));
+        return ResponseEntity.ok().build();
     }
 
-    /** 일반 로그인 (Access/Refresh 쿠키 발급 + RefreshToken DB 저장) */
+    /** 로그인 */
     @PostMapping("/login")
-    public ResponseEntity<MessageResponseDto> login(
+    public ResponseEntity<Void> login(
             HttpServletRequest request,
             HttpServletResponse response,
             @RequestBody LoginRequestDto requestDto
@@ -61,16 +56,19 @@ public class AuthController {
         refreshTokenCookie.setMaxAge((int) (refreshExpirationMs / 1000));
         response.addCookie(refreshTokenCookie);
 
-        return ResponseEntity.ok(new MessageResponseDto("로그인 완료"));
+        return ResponseEntity.ok().build();
     }
 
-    /** Refresh Token으로 Access Token 재발급 */
+    /** 액세스토큰 재발급 */
     @PostMapping("/refresh")
-    public ResponseEntity<Map<String, String>> refreshToken(HttpServletRequest request, HttpServletResponse response) {
+    public ResponseEntity<Void> refreshToken(
+            HttpServletRequest request,
+            HttpServletResponse response
+    ) {
         String refreshToken = getRefreshTokenFromCookie(request);
 
         if (refreshToken == null) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build(); // 401
         }
 
         try {
@@ -85,12 +83,9 @@ public class AuthController {
             accessTokenCookie.setMaxAge((int) (jwtTokenizer.getExpirationTime() / 1000));
             response.addCookie(accessTokenCookie);
 
-            Map<String, String> result = new HashMap<>();
-            result.put("accessToken", newAccessToken);
-
-            return ResponseEntity.ok(result);
+            return ResponseEntity.ok().build();
         } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build(); // 401
         }
     }
 
@@ -98,13 +93,11 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(
             HttpServletRequest request,
-            HttpServletResponse response,
-            @AuthenticationPrincipal CustomPrincipal customPrincipal
+            HttpServletResponse response
     ) {
         String refreshToken = getRefreshTokenFromCookie(request);
 
         if (refreshToken != null) {
-            // DB에서 Refresh Token 삭제
             authService.deleteRefreshToken(refreshToken);
         }
 

@@ -1,11 +1,10 @@
 package org.example.backend.controller.user;
 
 import lombok.RequiredArgsConstructor;
-import org.example.backend.dto.common.MessageResponseDto;
-import org.example.backend.dto.genre.GenreDto;
+import org.example.backend.dto.genre.GenreResponseDto;
 import org.example.backend.dto.genre.UserGenreRequestDto;
-import org.example.backend.dto.keyword.KeywordDto;
-import org.example.backend.dto.movie.WatchedMovieListItemDto;
+import org.example.backend.dto.keyword.KeywordResponseDto;
+import org.example.backend.dto.movie.WatchedMovieListItemResponseDto;
 import org.example.backend.dto.review.ReviewResponseDto;
 import org.example.backend.dto.user.UserResponseDto;
 import org.example.backend.security.CustomPrincipal;
@@ -69,54 +68,54 @@ public class UserController {
 
     /** 관심 장르 목록 조회 */
     @GetMapping("/me/genres")
-    public ResponseEntity<List<GenreDto>> getMyGenres(@AuthenticationPrincipal CustomPrincipal customPrincipal) {
+    public ResponseEntity<List<GenreResponseDto>> getMyGenres(@AuthenticationPrincipal CustomPrincipal customPrincipal) {
         return ResponseEntity.ok(genreService.getMyGenres(customPrincipal.getUserId()));
     }
 
     /** 관심 장르 등록 */
     @PostMapping("/me/genres")
-    public ResponseEntity<MessageResponseDto> addMyGenre(
+    public ResponseEntity<Void> addMyGenre(
             @AuthenticationPrincipal CustomPrincipal customPrincipal,
             @RequestBody UserGenreRequestDto requestDto
     ) {
         genreService.addMyGenre(customPrincipal.getUserId(), requestDto.genreId());
-        return ResponseEntity.ok(new MessageResponseDto("관심 장르 등록 완료"));
+        return ResponseEntity.ok().build();
     }
 
     /** 관심 장르 삭제 */
     @DeleteMapping("/me/genres/{genreId}")
-    public ResponseEntity<MessageResponseDto> deleteMyGenre(
+    public ResponseEntity<Void> deleteMyGenre(
             @AuthenticationPrincipal CustomPrincipal customPrincipal,
             @PathVariable Long genreId
     ) {
         genreService.deleteMyGenre(customPrincipal.getUserId(), genreId);
-        return ResponseEntity.ok(new MessageResponseDto("관심 장르 삭제 완료"));
+        return ResponseEntity.ok().build();
     }
 
     /** 관심 키워드 목록 조회 */
     @GetMapping("/me/keywords")
-    public ResponseEntity<List<KeywordDto>> getMyKeywords(@AuthenticationPrincipal CustomPrincipal customPrincipal) {
+    public ResponseEntity<List<KeywordResponseDto>> getMyKeywords(@AuthenticationPrincipal CustomPrincipal customPrincipal) {
         return ResponseEntity.ok(keywordService.getMyKeywords(customPrincipal.getUserId()));
     }
 
     /** 관심 키워드 등록 */
     @PostMapping("/me/keywords/{keywordName}")
-    public ResponseEntity<MessageResponseDto> addMyKeyword(
+    public ResponseEntity<Void> addMyKeyword(
             @AuthenticationPrincipal CustomPrincipal customPrincipal,
             @PathVariable String keywordName
     ) {
         keywordService.addMyKeyword(customPrincipal.getUserId(), keywordName);
-        return ResponseEntity.ok(new MessageResponseDto("관심 키워드 등록 완료"));
+        return ResponseEntity.ok().build();
     }
 
     /** 관심 키워드 삭제 */
     @DeleteMapping("/me/keywords/{keywordName}")
-    public ResponseEntity<MessageResponseDto> deleteMyKeyword(
+    public ResponseEntity<Void> deleteMyKeyword(
             @AuthenticationPrincipal CustomPrincipal customPrincipal,
             @PathVariable String keywordName
     ) {
         keywordService.deleteMyKeyword(customPrincipal.getUserId(), keywordName);
-        return ResponseEntity.ok(new MessageResponseDto("관심 키워드 삭제 완료"));
+        return ResponseEntity.ok().build();
     }
 
     /** 내가 작성한 리뷰 목록 조회 */
@@ -130,7 +129,7 @@ public class UserController {
 
     /** 내가 본 영화 목록 조회 */
     @GetMapping("/me/watched-movies")
-    public ResponseEntity<Slice<WatchedMovieListItemDto>> getMyWatchedMovies(
+    public ResponseEntity<Slice<WatchedMovieListItemResponseDto>> getMyWatchedMovies(
             @AuthenticationPrincipal CustomPrincipal customPrincipal,
             Pageable pageable
     ) {
