@@ -16,6 +16,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 @Component
@@ -94,6 +96,131 @@ public class TmdbClient {
             log.error("TMDB API 호출 실패: 장르 목록 조회", e);
             throw new RuntimeException("TMDB API 호출 실패: " + e.getMessage(), e);
         }
+    }
+
+    /** 영화 검색 (제목 검색) */
+    public Slice<TmdbMovieResponseDto> searchMovies(String query, Pageable pageable) {
+        try {
+            int page = pageable.getPageNumber() + 1;
+            int size = pageable.getPageSize();
+
+            TmdbMovieListResponseDto response = tmdbWebClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/search/movie")
+                            .queryParam("api_key", tmdbApiKey)
+                            .queryParam("query", query)
+                            .queryParam("page", page)
+                            .queryParam("language", "ko-KR")
+                            .build())
+                    .retrieve()
+                    .bodyToMono(TmdbMovieListResponseDto.class)
+                    .block();
+
+            if (response == null || response.results() == null) {
+                return new SliceImpl<>(List.of(), pageable, false);
+            }
+
+            List<TmdbMovieResponseDto> results = response.results();
+            List<TmdbMovieResponseDto> content = results.size() > size
+                    ? results.subList(0, size)
+                    : results;
+
+            boolean hasNext = response.page() < response.totalPages() && results.size() > size;
+            return new SliceImpl<>(content, pageable, hasNext);
+        } catch (WebClientResponseException e) {
+            log.error("TMDB API 호출 실패: 영화 검색 - query: {}", query, e);
+            throw new RuntimeException("TMDB API 호출 실패: " + e.getMessage(), e);
+        }
+    }
+
+    /** Top Rated 영화 목록 조회 (TMDB 사이트와 동일한 방식) */
+    public Slice<TmdbMovieResponseDto> fetchTopRatedMovies(Pageable pageable) {
+        return fetchMovies("/movie/top_rated", pageable, "ko-KR", null);
+    }
+
+    /** 영화 목록 조회 (필터링: 연도 범위, 정렬) */
+    public Slice<TmdbMovieResponseDto> discoverMovies(
+            Pageable pageable, 
+            String sortBy, 
+            Integer releaseYearFrom, 
+            Integer releaseYearTo) {
+        try {
+            int page = pageable.getPageNumber() + 1;
+            int size = pageable.getPageSize();
+            
+            // 오늘 날짜 (미래 영화 제외용)
+            String today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
+
+            var requestSpec = tmdbWebClient.get()
+                    .uri(uriBuilder -> {
+                        var builder = uriBuilder
+                                .path("/discover/movie")
+                                .queryParam("api_key", tmdbApiKey)
+                                .queryParam("page", page)
+                                .queryParam("language", "ko-KR")
+                                .queryParam("include_adult", false) // 성인 콘텐츠 제외
+                                .queryParam("sort_by", convertSortBy(sortBy));
+
+                        // 연도 범위 필터
+                        if (releaseYearFrom != null) {
+                            builder.queryParam("primary_release_date.gte", releaseYearFrom + "-01-01");
+                        }
+                        
+                        // releaseYearTo 처리: 사용자 지정값과 오늘 날짜 중 작은 값 사용
+                        if (releaseYearTo != null) {
+                            String endDate = releaseYearTo + "-12-31";
+                            // 사용자가 지정한 연도가 미래이면 오늘까지만
+                            if (endDate.compareTo(today) > 0) {
+                                builder.queryParam("primary_release_date.lte", today);
+                            } else {
+                                builder.queryParam("primary_release_date.lte", endDate);
+                            }
+                        } else {
+                            // releaseYearTo가 없으면 오늘까지만 (미래 영화 제외)
+                            builder.queryParam("primary_release_date.lte", today);
+                        }
+
+                        // 평점순인 경우 최소 투표 수 필터 추가 (1명만 투표한 영화 제외)
+                        if ("rating".equalsIgnoreCase(sortBy)) {
+                            builder.queryParam("vote_count.gte", 200); // 최소 200명 이상 투표
+                        }
+
+                        return builder.build();
+                    });
+
+            TmdbMovieListResponseDto response = requestSpec
+                    .retrieve()
+                    .bodyToMono(TmdbMovieListResponseDto.class)
+                    .block();
+
+            if (response == null || response.results() == null) {
+                return new SliceImpl<>(List.of(), pageable, false);
+            }
+
+            List<TmdbMovieResponseDto> results = response.results();
+            List<TmdbMovieResponseDto> content = results.size() > size
+                    ? results.subList(0, size)
+                    : results;
+
+            boolean hasNext = response.page() < response.totalPages() && results.size() > size;
+            return new SliceImpl<>(content, pageable, hasNext);
+        } catch (WebClientResponseException e) {
+            log.error("TMDB API 호출 실패: 영화 목록 조회 - sortBy: {}, releaseYearFrom: {}, releaseYearTo: {}", 
+                    sortBy, releaseYearFrom, releaseYearTo, e);
+            throw new RuntimeException("TMDB API 호출 실패: " + e.getMessage(), e);
+        }
+    }
+
+    /** 정렬 옵션을 TMDB API 형식으로 변환 */
+    private String convertSortBy(String sortBy) {
+        if (sortBy == null || sortBy.isBlank()) {
+            return "release_date.desc"; // 최신순
+        }
+        return switch (sortBy.toLowerCase()) {
+            case "rating" -> "vote_average.desc"; // 평점순
+            case "latest" -> "release_date.desc"; // 최신순
+            default -> "release_date.desc";
+        };
     }
 
     /** 공통 영화 목록 반환 처리 */

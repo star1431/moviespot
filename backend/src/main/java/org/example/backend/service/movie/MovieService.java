@@ -233,31 +233,38 @@ public class MovieService {
         log.info("사용자 평점 삭제 완료: userId={}, tmdbId={}", userId, tmdbId);
     }
 
-    /** 영화 목록 조회 (필터링, 정렬 지원) */
+    /** 영화 목록 조회 (필터링, 정렬 지원) - TMDB API 직접 호출 */
     @Transactional(readOnly = true)
-    public Slice<MovieResponseDto> getMovies(String sortBy, String keyword, Integer releaseYear, Pageable pageable) {
+    public Slice<MovieResponseDto> getMovies(
+            String sortBy, 
+            String keyword, 
+            Integer releaseYearFrom, 
+            Integer releaseYearTo, 
+            Pageable pageable) {
         // 정렬 옵션 검증 및 기본값 설정
         if (sortBy == null || sortBy.isBlank()) {
             sortBy = "latest";
         }
         
-        // 제목 검색 키워드 검증 (2글자 이상)
-        if (keyword != null && keyword.length() < 2) {
-            keyword = null;
-        }
+        Slice<TmdbMovieResponseDto> tmdbMovies;
         
-        List<Movie> movies;
-        
-        // 우리회원평가순 정렬은 별도 쿼리 사용
-        if ("userRating".equals(sortBy)) {
-            movies = movieRepository.findMoviesWithUserRatingSort(keyword, releaseYear, pageable);
+        // 제목 검색인 경우 search API 사용
+        if (keyword != null && keyword.length() >= 2) {
+            tmdbMovies = tmdbClient.searchMovies(keyword, pageable);
+        } else if ("rating".equalsIgnoreCase(sortBy)) {
+            // 평점순은 Top Rated API 사용 (TMDB 사이트와 동일)
+            tmdbMovies = tmdbClient.fetchTopRatedMovies(pageable);
         } else {
-            movies = movieRepository.findMoviesWithFilters(keyword, releaseYear, sortBy, pageable);
+            // discover API 사용 (연도 범위 필터링, 정렬)
+            tmdbMovies = tmdbClient.discoverMovies(pageable, sortBy, releaseYearFrom, releaseYearTo);
         }
         
-        // 배치 조회로 평균 평점 한 번에 계산
-        List<Long> tmdbIds = movies.stream()
-                .map(Movie::getTmdbId)
+        // TMDB API 응답을 DTO로 변환
+        List<TmdbMovieResponseDto> tmdbMovieList = tmdbMovies.getContent();
+        
+        // 우리회원 평균 평점 계산 (DB에 있는 영화만)
+        List<Long> tmdbIds = tmdbMovieList.stream()
+                .map(TmdbMovieResponseDto::id)
                 .collect(Collectors.toList());
         
         Map<Long, Double> averageRatingMap = new HashMap<>();
@@ -271,12 +278,23 @@ public class MovieService {
         }
         
         final Map<Long, Double> finalRatingMap = averageRatingMap;
-        List<MovieResponseDto> content = movies.stream()
-                .map(movie -> toMovieResponseDto(movie, finalRatingMap.get(movie.getTmdbId())))
+        List<MovieResponseDto> content = tmdbMovieList.stream()
+                .map(tmdbMovie -> {
+                    String posterUrl = tmdbMovie.posterPath() != null
+                            ? tmdbImageBaseUrl + tmdbMovie.posterPath()
+                            : null;
+                    return new MovieResponseDto(
+                            tmdbMovie.id(),
+                            tmdbMovie.title(),
+                            tmdbMovie.releaseDate(),
+                            posterUrl,
+                            tmdbMovie.voteAverage(),
+                            finalRatingMap.get(tmdbMovie.id())
+                    );
+                })
                 .collect(Collectors.toList());
         
-        boolean hasNext = content.size() == pageable.getPageSize();
-        return new SliceImpl<>(content, pageable, hasNext);
+        return new SliceImpl<>(content, pageable, tmdbMovies.hasNext());
     }
 
     // 내부 처리 ----------------

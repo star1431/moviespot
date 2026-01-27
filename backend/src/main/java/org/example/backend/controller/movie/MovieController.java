@@ -23,10 +23,11 @@ public class MovieController {
     public ResponseEntity<Slice<MovieResponseDto>> getMovies(
             @RequestParam(required = false) String sortBy,
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) Integer releaseYear,
+            @RequestParam(required = false) Integer releaseYearFrom,
+            @RequestParam(required = false) Integer releaseYearTo,
             Pageable pageable
     ) {
-        return ResponseEntity.ok(movieService.getMovies(sortBy, keyword, releaseYear, pageable));
+        return ResponseEntity.ok(movieService.getMovies(sortBy, keyword, releaseYearFrom, releaseYearTo, pageable));
     }
 
     /** 전체 인기작 목록 조회 */
