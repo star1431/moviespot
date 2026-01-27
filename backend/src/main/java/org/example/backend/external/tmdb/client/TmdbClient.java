@@ -6,6 +6,8 @@ import org.example.backend.external.tmdb.dto.TmdbGenreDto;
 import org.example.backend.external.tmdb.dto.TmdbGenreResponseDto;
 import org.example.backend.external.tmdb.dto.TmdbMovieListResponseDto;
 import org.example.backend.external.tmdb.dto.TmdbMovieResponseDto;
+import org.example.backend.external.tmdb.dto.TmdbVideoDto;
+import org.example.backend.external.tmdb.dto.TmdbVideoListResponseDto;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
@@ -50,6 +52,26 @@ public class TmdbClient {
                     .block();
         } catch (WebClientResponseException e) {
             log.error("TMDB API 호출 실패: 영화 상세 조회 - tmdbId: {}", tmdbId, e);
+            throw new RuntimeException("TMDB API 호출 실패: " + e.getMessage(), e);
+        }
+    }
+
+    /** 영화 영상(트레일러/티저 등) 목록 조회 */
+    public List<TmdbVideoDto> fetchMovieVideos(Long tmdbId) {
+        try {
+            TmdbVideoListResponseDto response = tmdbWebClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/movie/{id}/videos")
+                            .queryParam("api_key", tmdbApiKey)
+                            .queryParam("language", "ko-KR")
+                            .build(tmdbId))
+                    .retrieve()
+                    .bodyToMono(TmdbVideoListResponseDto.class)
+                    .block();
+
+            return response != null && response.results() != null ? response.results() : List.of();
+        } catch (WebClientResponseException e) {
+            log.error("TMDB API 호출 실패: 영화 영상 조회 - tmdbId: {}", tmdbId, e);
             throw new RuntimeException("TMDB API 호출 실패: " + e.getMessage(), e);
         }
     }

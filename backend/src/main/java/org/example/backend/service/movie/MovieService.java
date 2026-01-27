@@ -11,9 +11,10 @@ import org.example.backend.dto.common.SliceResponseDto;
 import org.example.backend.dto.movie.MovieDetailResponseDto;
 import org.example.backend.dto.movie.MovieUserRatingResponseDto;
 import org.example.backend.dto.movie.MovieResponseDto;
-import org.example.backend.dto.movie.UserRatingRequestDto;
+import org.example.backend.dto.movie.MovieUserRatingUpsertRequestDto;
 import org.example.backend.external.tmdb.client.TmdbClient;
 import org.example.backend.external.tmdb.dto.TmdbMovieResponseDto;
+import org.example.backend.external.tmdb.dto.TmdbVideoDto;
 import org.example.backend.external.tmdb.mapper.TmdbMovieMapper;
 import org.example.backend.repository.movie.MovieRepository;
 import org.example.backend.repository.movie.WatchedMovieRepository;
@@ -32,8 +33,13 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -65,42 +71,47 @@ public class MovieService {
     }
 
     /** 전체 인기작 목록 조회 */
-    @Transactional(readOnly = true)
+    // @Transactional(readOnly = true) // 내부에 별도로 쓰기트랜잭션 있지만, 읽기 당시 이전 스냅샷으로 고정되서 제거
     public Slice<MovieResponseDto> getPopularMovies(Pageable pageable) {
         LocalDateTime todayMidnight = getTodayMidnight();
-        long count = movieRepository.countByMovieTypeAndUpdatedAtAfter(MovieType.POPULAR, todayMidnight);
+        long count = movieRepository.countByMovieTypeAndUpdatedAtGreaterThanEqual(MovieType.POPULAR, todayMidnight);
         
         if (count < INITIAL_MOVIE_COUNT) {
             log.info("전체 인기작: 최신 반영 로직 진행");
             getSelf().updatePopularMovies();
         }
         
-        return getMoviesFromDb(MovieType.POPULAR, pageable);
+        return getMoviesFromDb(MovieType.POPULAR, todayMidnight, pageable);
     }
 
     /** 인기 상영작 목록 조회 */
-    @Transactional(readOnly = true)
+    // @Transactional(readOnly = true) // 내부에 별도로 쓰기트랜잭션 있지만, 읽기 당시 이전 스냅샷으로 고정되서 제거
     public Slice<MovieResponseDto> getNowPlayingMovies(Pageable pageable) {
         LocalDateTime todayMidnight = getTodayMidnight();
-        long count = movieRepository.countByMovieTypeAndUpdatedAtAfter(MovieType.NOW_PLAYING, todayMidnight);
+        long count = movieRepository.countByMovieTypeAndUpdatedAtGreaterThanEqual(MovieType.NOW_PLAYING, todayMidnight);
         
         if (count < INITIAL_MOVIE_COUNT) {
             log.info("인기 상영작: 최신 반영 로직 진행");
             getSelf().updateNowPlayingMovies();
         }
         
-        return getMoviesFromDb(MovieType.NOW_PLAYING, pageable);
+        return getMoviesFromDb(MovieType.NOW_PLAYING, todayMidnight, pageable);
     }
 
     /** 영화 상세 조회 */
     @Transactional(readOnly = true)
     public MovieDetailResponseDto getMovieDetail(Long tmdbId, Long userId, int commentPage, int commentSize) {
         TmdbMovieResponseDto tmdbMovie = tmdbClient.fetchMovieDetail(tmdbId);
+        String trailerUrl = getOrCreateFixedTrailerUrl(tmdbId);
+        
+        // 우리회원 평균 평점 계산
+        Double userAverageRating = userRatingRepository
+                .calculateAverageRatingByTmdbId(tmdbId)
+                .orElse(null);
 
         int safePage = Math.max(0, commentPage);
         int safeSize = Math.max(1, Math.min(commentSize, 50));
 
-        
         List<UserRating> fetched = userRatingRepository
                 .findByMovieTmdbIdOrderByCreatedAtDesc(tmdbId, PageRequest.of(safePage, safeSize + 1));
 
@@ -121,14 +132,21 @@ public class MovieService {
         SliceResponseDto<MovieUserRatingResponseDto> userRatings =
                 new SliceResponseDto<>(ratingDtos, safePage, safeSize, hasNext);
 
+        // 포스터 URL 생성
+        String posterUrl = tmdbMovie.posterPath() != null
+                ? tmdbImageBaseUrl + tmdbMovie.posterPath()
+                : null;
+
         if (userId == null) {
             return new MovieDetailResponseDto(
                     tmdbMovie.id(),
                     tmdbMovie.title(),
                     tmdbMovie.releaseDate(),
-                    tmdbMovie.posterPath(),
+                    posterUrl,
                     tmdbMovie.overview(),
                     tmdbMovie.voteAverage(),
+                    userAverageRating,
+                    trailerUrl,
                     userRatings,
                     null,
                     null,
@@ -149,9 +167,11 @@ public class MovieService {
                 tmdbMovie.id(),
                 tmdbMovie.title(),
                 tmdbMovie.releaseDate(),
-                tmdbMovie.posterPath(),
+                posterUrl,
                 tmdbMovie.overview(),
                 tmdbMovie.voteAverage(),
+                userAverageRating,
+                trailerUrl,
                 userRatings,
                 userRatingOpt.map(UserRating::getCreatedAt).orElse(null),
                 userRatingOpt.map(UserRating::getScore).orElse(null),
@@ -168,21 +188,17 @@ public class MovieService {
         return getMovieDetail(tmdbId, null, commentPage, commentSize);
     }
 
-    /** 사용자 평점/코멘트 저장 */
+    /** 사용자 평점/코멘트 등록/수정 */
     @Transactional
-    public void saveUserRating(Long userId, Long tmdbId, UserRatingRequestDto requestDto) {
+    public void upsertUserRating(Long userId, MovieUserRatingUpsertRequestDto requestDto) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다: " + userId));
         
-        Movie movie = movieRepository.findByTmdbId(tmdbId)
-                .orElseGet(() -> {
-                    TmdbMovieResponseDto tmdbMovie = tmdbClient.fetchMovieDetail(tmdbId);
-                    Movie newMovie = tmdbMovieMapper.toMovie(tmdbMovie);
-                    return movieRepository.save(newMovie);
-                });
+        // 영화 조회 또는 생성
+        Movie movie = getOrCreateMovieByTmdbId(requestDto.tmdbId());
         
         Optional<UserRating> existingRatingOpt = userRatingRepository
-                .findByUserUserIdAndMovieTmdbId(userId, tmdbId);
+                .findByUserUserIdAndMovieTmdbId(userId, requestDto.tmdbId());
         
         if (existingRatingOpt.isPresent()) {
             UserRating existingRating = existingRatingOpt.get();
@@ -196,6 +212,7 @@ public class MovieService {
                     .createdAt(existingRating.getCreatedAt())
                     .build();
             userRatingRepository.save(updatedRating);
+            log.info("사용자 평점 수정 완료: userId={}, tmdbId={}", userId, requestDto.tmdbId());
         } else {
             UserRating newRating = UserRating.builder()
                     .score(requestDto.score())
@@ -205,9 +222,8 @@ public class MovieService {
                     .movie(movie)
                     .build();
             userRatingRepository.save(newRating);
+            log.info("사용자 평점 등록 완료: userId={}, tmdbId={}", userId, requestDto.tmdbId());
         }
-        
-        log.info("사용자 평점 저장 완료: userId={}, tmdbId={}", userId, tmdbId);
     }
 
     /** 사용자 평점/코멘트 삭제 */
@@ -217,28 +233,101 @@ public class MovieService {
         log.info("사용자 평점 삭제 완료: userId={}, tmdbId={}", userId, tmdbId);
     }
 
-    // 내부 처리 ----------------
-
-    /** DB에서 영화 목록 조회 */
-    private Slice<MovieResponseDto> getMoviesFromDb(MovieType movieType, Pageable pageable) {
-        List<Movie> movies = movieRepository.findByMovieTypeOrderByCreatedAtDesc(movieType, pageable);
+    /** 영화 목록 조회 (필터링, 정렬 지원) */
+    @Transactional(readOnly = true)
+    public Slice<MovieResponseDto> getMovies(String sortBy, String keyword, Integer releaseYear, Pageable pageable) {
+        // 정렬 옵션 검증 및 기본값 설정
+        if (sortBy == null || sortBy.isBlank()) {
+            sortBy = "latest";
+        }
+        
+        // 제목 검색 키워드 검증 (2글자 이상)
+        if (keyword != null && keyword.length() < 2) {
+            keyword = null;
+        }
+        
+        List<Movie> movies;
+        
+        // 우리회원평가순 정렬은 별도 쿼리 사용
+        if ("userRating".equals(sortBy)) {
+            movies = movieRepository.findMoviesWithUserRatingSort(keyword, releaseYear, pageable);
+        } else {
+            movies = movieRepository.findMoviesWithFilters(keyword, releaseYear, sortBy, pageable);
+        }
+        
+        // 배치 조회로 평균 평점 한 번에 계산
+        List<Long> tmdbIds = movies.stream()
+                .map(Movie::getTmdbId)
+                .collect(Collectors.toList());
+        
+        Map<Long, Double> averageRatingMap = new HashMap<>();
+        if (!tmdbIds.isEmpty()) {
+            List<Object[]> ratingResults = userRatingRepository.calculateAverageRatingsByTmdbIds(tmdbIds);
+            for (Object[] result : ratingResults) {
+                Long tmdbId = (Long) result[0];
+                Double avgRating = (Double) result[1];
+                averageRatingMap.put(tmdbId, avgRating);
+            }
+        }
+        
+        final Map<Long, Double> finalRatingMap = averageRatingMap;
         List<MovieResponseDto> content = movies.stream()
-                .map(this::toMovieResponseDto)
+                .map(movie -> toMovieResponseDto(movie, finalRatingMap.get(movie.getTmdbId())))
                 .collect(Collectors.toList());
         
         boolean hasNext = content.size() == pageable.getPageSize();
         return new SliceImpl<>(content, pageable, hasNext);
     }
+
+    // 내부 처리 ----------------
+
+    /** DB에서 영화 목록 조회 */
+    private Slice<MovieResponseDto> getMoviesFromDb(MovieType movieType, LocalDateTime todayMidnight, Pageable pageable) {
+        List<Movie> movies = movieRepository.findByMovieTypeOrderByCreatedAtDesc(movieType, todayMidnight, pageable);
+        
+        // 조회로 평균 평점 한 번에 계산
+        List<Long> tmdbIds = movies.stream()
+                .map(Movie::getTmdbId)
+                .collect(Collectors.toList());
+        
+        Map<Long, Double> averageRatingMap = new HashMap<>();
+        if (!tmdbIds.isEmpty()) {
+            List<Object[]> ratingResults = userRatingRepository.calculateAverageRatingsByTmdbIds(tmdbIds);
+            for (Object[] result : ratingResults) {
+                Long tmdbId = (Long) result[0];
+                Double avgRating = (Double) result[1];
+                averageRatingMap.put(tmdbId, avgRating);
+            }
+        }
+        
+        final Map<Long, Double> finalRatingMap = averageRatingMap;
+        List<MovieResponseDto> content = movies.stream()
+                .map(movie -> toMovieResponseDto(movie, finalRatingMap.get(movie.getTmdbId())))
+                .collect(Collectors.toList());
+        
+        boolean hasNext = content.size() == pageable.getPageSize();
+        return new SliceImpl<>(content, pageable, hasNext);
+    }
+    // @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
+    // private Slice<MovieResponseDto> getNewMoviesFromDb(MovieType movieType, Pageable pageable) {
+    //     List<Movie> movies = movieRepository.findByMovieTypeOrderByCreatedAtDesc(movieType, pageable);
+    //     List<MovieResponseDto> content = movies.stream()
+    //             .map(this::toMovieResponseDto)
+    //             .collect(Collectors.toList());
+    //
+    //     boolean hasNext = content.size() == pageable.getPageSize();
+    //     return new SliceImpl<>(content, pageable, hasNext);
+    // }
     
     /** Movie 엔티티를 MovieResponseDto로 변환 */
-    private MovieResponseDto toMovieResponseDto(Movie movie) {
+    private MovieResponseDto toMovieResponseDto(Movie movie, Double userAverageRating) {
         return new MovieResponseDto(
                 movie.getTmdbId(),
                 movie.getTitle(),
                 movie.getReleaseDate(),
                 movie.getPosterUrl(),
-                movie.getOverview(),
-                movie.getTmdbRate()
+                movie.getTmdbRate(),
+                userAverageRating
         );
     }
 
@@ -270,51 +359,102 @@ public class MovieService {
     private void updateMoviesWithComparison(List<TmdbMovieResponseDto> apiMovies, MovieType movieType) {
         LocalDateTime todayMidnight = getTodayMidnight();
         
-        // DB에서 해당 인기상영, 전체인기 타입 가진 영화만
         List<Movie> dbMovies = movieRepository.findByMovieType(movieType);
-        List<Long> dbTmdbIds = dbMovies.stream()
-                .map(Movie::getTmdbId)
-                .toList();
-        
-        // tmdb api에서 받은 영화의 tmdbId
-        List<Long> apiTmdbIds = apiMovies.stream()
+        Set<Long> apiTmdbIds = apiMovies.stream()
                 .map(TmdbMovieResponseDto::id)
-                .toList();
-        
-        // db에 있음 | tmdb api 있음 = updatedAt만 변경
-        for (TmdbMovieResponseDto apiMovie : apiMovies) {
-            if (dbTmdbIds.contains(apiMovie.id())) {
-                Movie existingMovie = movieRepository.findByTmdbId(apiMovie.id())
-                        .orElseThrow();
-                Movie updatedMovie = existingMovie.toBuilder()
-                        .updatedAt(todayMidnight)
-                        .build();
-                movieRepository.save(updatedMovie);
-            }
-        }
-        
-        // db에 없음 | tmdb api 있음 = 저장 (날짜,타입까지)
-        for (TmdbMovieResponseDto apiMovie : apiMovies) {
-            if (!dbTmdbIds.contains(apiMovie.id())) {
-                saveOrUpdateMovie(apiMovie, movieType, todayMidnight);
-            }
-        }
-        
-        // db에 있음 | tmdb api 없음 = movieType, updatedAt을 null로 변경
+                .collect(Collectors.toSet());
+
+        // db에 있음 | tmdb api 없음 = 해당 타입만 제거 (다른 타입은 유지)
         for (Movie dbMovie : dbMovies) {
             if (!apiTmdbIds.contains(dbMovie.getTmdbId())) {
+                Set<MovieType> types = normalizeTypes(dbMovie.getMovieTypes());
+                types.remove(movieType);
                 Movie updatedMovie = dbMovie.toBuilder()
-                        .movieType(null)
-                        .updatedAt(null)
+                        .movieTypes(types.isEmpty() ? null : types)
+                        .updatedAt(types.isEmpty() ? null : dbMovie.getUpdatedAt())
                         .build();
                 movieRepository.save(updatedMovie);
             }
+        }
+
+        // api 목록 순서대로 갱신
+        for (TmdbMovieResponseDto apiMovie : apiMovies) {
+            Movie movie = saveOrUpdateMovieBase(apiMovie);
+            Set<MovieType> types = normalizeTypes(movie.getMovieTypes());
+            types.add(movieType);
+
+            Movie updatedMovie = movie.toBuilder()
+                    .movieTypes(types)
+                    .updatedAt(todayMidnight)
+                    .build();
+            movieRepository.save(updatedMovie);
         }
     }
 
-    /** 영화 저장 */
+    private Set<MovieType> normalizeTypes(Set<MovieType> current) {
+        if (current == null || current.isEmpty()) {
+            return EnumSet.noneOf(MovieType.class);
+        }
+        return EnumSet.copyOf(current);
+    }
+
+    /** 영화 상세용 대표 트레일러 URL 선택 (YouTube만) */
+    private String pickTrailerUrl(List<TmdbVideoDto> videos) {
+        if (videos == null || videos.isEmpty()) {
+            return null;
+        }
+
+        Comparator<TmdbVideoDto> score = Comparator
+                // Trailer 우선
+                .comparing((TmdbVideoDto v) -> "Trailer".equalsIgnoreCase(v.type()) ? 0 : 1)
+                // 공식 우선
+                .thenComparing(v -> Boolean.TRUE.equals(v.official()) ? 0 : 1)
+                // YouTube 우선
+                .thenComparing(v -> "YouTube".equalsIgnoreCase(v.site()) ? 0 : 1);
+
+        TmdbVideoDto best = videos.stream()
+                .filter(v -> v.site() != null && v.key() != null)
+                .min(score)
+                .orElse(null);
+
+        if (best == null) {
+            return null;
+        }
+
+        String youtubeUrl = "YouTube".equalsIgnoreCase(best.site())
+                ? "https://www.youtube.com/watch?v=" + best.key()
+                : null;
+
+        return youtubeUrl;
+    }
+
+    /** Movie 엔티티에 트레일러 URL이 저장돼 있으면 그걸 사용, 없으면 TMDB에서 1개 골라서 저장 후 사용 */
     @Transactional
-    public Movie saveOrUpdateMovie(TmdbMovieResponseDto tmdbMovie, MovieType movieType, LocalDateTime updatedAt) {
+    public String getOrCreateFixedTrailerUrl(Long tmdbId) {
+        Movie movie = movieRepository.findByTmdbId(tmdbId).orElse(null);
+
+        if (movie != null && movie.getTrailerUrl() != null && !movie.getTrailerUrl().isBlank()) {
+            return movie.getTrailerUrl();
+        }
+
+        String pickedUrl = pickTrailerUrl(tmdbClient.fetchMovieVideos(tmdbId));
+        if (pickedUrl == null) {
+            return null;
+        }
+
+        if (movie != null) {
+            Movie updated = movie.toBuilder()
+                    .trailerUrl(pickedUrl)
+                    .build();
+            movieRepository.save(updated);
+        }
+
+        return pickedUrl;
+    }
+
+    /** 영화 기본정보 저장/업데이트(TMDB 기준) */
+    @Transactional
+    public Movie saveOrUpdateMovieBase(TmdbMovieResponseDto tmdbMovie) {
         return movieRepository.findByTmdbId(tmdbMovie.id())
                 .map(existingMovie -> {
                     Movie updatedMovie = existingMovie.toBuilder()
@@ -325,17 +465,23 @@ public class MovieService {
                                     : null)
                             .overview(tmdbMovie.overview())
                             .tmdbRate(tmdbMovie.voteAverage())
-                            .movieType(movieType)
-                            .updatedAt(updatedAt)
                             .build();
                     return movieRepository.save(updatedMovie);
                 })
                 .orElseGet(() -> {
-                    Movie newMovie = tmdbMovieMapper.toMovie(tmdbMovie, movieType);
-                    Movie movieWithUpdatedAt = newMovie.toBuilder()
-                            .updatedAt(updatedAt)
-                            .build();
-                    return movieRepository.save(movieWithUpdatedAt);
+                    Movie newMovie = tmdbMovieMapper.toMovie(tmdbMovie);
+                    return movieRepository.save(newMovie);
+                });
+    }
+
+    /** tmdbId로 영화 조회 또는 생성 (공통 메서드) */
+    @Transactional
+    public Movie getOrCreateMovieByTmdbId(Long tmdbId) {
+        return movieRepository.findByTmdbId(tmdbId)
+                .orElseGet(() -> {
+                    log.info("영화가 DB에 없어서 자동 생성: tmdbId={}", tmdbId);
+                    TmdbMovieResponseDto tmdbMovie = tmdbClient.fetchMovieDetail(tmdbId);
+                    return saveOrUpdateMovieBase(tmdbMovie);
                 });
     }
 }

@@ -18,6 +18,17 @@ public class MovieController {
 
     private final MovieService movieService;
 
+    /** 영화 목록 조회 (필터링, 정렬 지원) */
+    @GetMapping
+    public ResponseEntity<Slice<MovieResponseDto>> getMovies(
+            @RequestParam(required = false) String sortBy,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer releaseYear,
+            Pageable pageable
+    ) {
+        return ResponseEntity.ok(movieService.getMovies(sortBy, keyword, releaseYear, pageable));
+    }
+
     /** 전체 인기작 목록 조회 */
     @GetMapping("/popular")
     public ResponseEntity<Slice<MovieResponseDto>> getPopularMovies(Pageable pageable) {

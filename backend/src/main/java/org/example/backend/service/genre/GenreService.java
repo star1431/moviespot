@@ -84,7 +84,7 @@ public class GenreService {
 
     /** 내 관심 장르 등록 */
     @Transactional
-    public void addMyGenre(Long userId, Long tmdbGenreId) {
+    public void createMyGenre(Long userId, Long tmdbGenreId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다: " + userId));
         Genre genre = genreRepository.findByTmdbGenreId(tmdbGenreId)
