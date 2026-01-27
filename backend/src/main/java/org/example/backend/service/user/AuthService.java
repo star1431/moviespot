@@ -57,15 +57,8 @@ public class AuthService {
     /** 로그인 */
     @Transactional(readOnly = true)
     public User login(LoginRequestDto requestDto) {
-        if (requestDto.email() == null || requestDto.email().isBlank()) {
-            throw new RuntimeException("이메일은 필수입니다.");
-        }
-        if (requestDto.password() == null || requestDto.password().isBlank()) {
-            throw new RuntimeException("비밀번호는 필수입니다.");
-        }
-
         User user = userRepository.findByEmail(requestDto.email())
-                .orElseThrow(() -> new RuntimeException("이메일 또는 비밀번호가 올바르지 않습니다."));
+                .orElseThrow(() -> new RuntimeException("존재하지 않은 사용자 입니다."));
 
         if (user.getPassword() == null) {
             throw new RuntimeException("소셜 로그인 계정입니다. 소셜 로그인으로 진행해주세요.");

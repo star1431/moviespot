@@ -13,7 +13,6 @@ import org.example.backend.service.keyword.KeywordService;
 import org.example.backend.service.movie.WatchedMovieService;
 import org.example.backend.service.review.ReviewService;
 import org.example.backend.service.user.UserService;
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Slice;
 import org.springframework.http.ResponseEntity;
@@ -78,7 +77,7 @@ public class UserController {
             @AuthenticationPrincipal CustomPrincipal customPrincipal,
             @RequestBody UserGenreRequestDto requestDto
     ) {
-        genreService.addMyGenre(customPrincipal.getUserId(), requestDto.genreId());
+        genreService.createMyGenre(customPrincipal.getUserId(), requestDto.genreId());
         return ResponseEntity.ok().build();
     }
 
@@ -104,7 +103,7 @@ public class UserController {
             @AuthenticationPrincipal CustomPrincipal customPrincipal,
             @PathVariable String keywordName
     ) {
-        keywordService.addMyKeyword(customPrincipal.getUserId(), keywordName);
+        keywordService.createMyKeyword(customPrincipal.getUserId(), keywordName);
         return ResponseEntity.ok().build();
     }
 
@@ -120,7 +119,7 @@ public class UserController {
 
     /** 내가 작성한 리뷰 목록 조회 */
     @GetMapping("/me/reviews")
-    public ResponseEntity<Page<ReviewResponseDto>> getMyReviews(
+    public ResponseEntity<Slice<ReviewResponseDto>> getMyReviews(
             @AuthenticationPrincipal CustomPrincipal customPrincipal,
             Pageable pageable
     ) {
