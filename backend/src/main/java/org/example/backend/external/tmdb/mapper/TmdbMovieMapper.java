@@ -22,6 +22,7 @@ public class TmdbMovieMapper {
                         : null)
                 .overview(dto.overview())
                 .tmdbRate(dto.voteAverage())
+                .runtime(dto.runtime())
                 .build();
     }
 }

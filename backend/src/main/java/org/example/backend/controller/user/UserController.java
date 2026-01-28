@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.example.backend.dto.genre.GenreResponseDto;
 import org.example.backend.dto.genre.UserGenreRequestDto;
 import org.example.backend.dto.keyword.KeywordResponseDto;
+import org.example.backend.dto.keyword.UserKeywordRequestDto;
 import org.example.backend.dto.movie.WatchedMovieListItemResponseDto;
 import org.example.backend.dto.review.ReviewResponseDto;
 import org.example.backend.dto.user.UserResponseDto;
@@ -98,22 +99,22 @@ public class UserController {
     }
 
     /** 관심 키워드 등록 */
-    @PostMapping("/me/keywords/{keywordName}")
+    @PostMapping("/me/keywords")
     public ResponseEntity<Void> addMyKeyword(
             @AuthenticationPrincipal CustomPrincipal customPrincipal,
-            @PathVariable String keywordName
+            @RequestBody UserKeywordRequestDto requestDto
     ) {
-        keywordService.createMyKeyword(customPrincipal.getUserId(), keywordName);
+        keywordService.createMyKeyword(customPrincipal.getUserId(), requestDto.keywordName());
         return ResponseEntity.ok().build();
     }
 
     /** 관심 키워드 삭제 */
-    @DeleteMapping("/me/keywords/{keywordName}")
+    @DeleteMapping("/me/keywords")
     public ResponseEntity<Void> deleteMyKeyword(
             @AuthenticationPrincipal CustomPrincipal customPrincipal,
-            @PathVariable String keywordName
+            @RequestBody UserKeywordRequestDto requestDto
     ) {
-        keywordService.deleteMyKeyword(customPrincipal.getUserId(), keywordName);
+        keywordService.deleteMyKeyword(customPrincipal.getUserId(), requestDto.keywordName());
         return ResponseEntity.ok().build();
     }
 

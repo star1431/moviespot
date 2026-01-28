@@ -11,6 +11,8 @@ public record TmdbMovieResponseDto(
         @JsonProperty("poster_path") String posterPath,
         @JsonProperty("overview") String overview,
         @JsonProperty("vote_average") Float voteAverage,
+        @JsonProperty("vote_count") Integer voteCount,
+        @JsonProperty("runtime") Integer runtime,
         @JsonProperty("genre_ids") List<Long> genreIds
 ) {
 }

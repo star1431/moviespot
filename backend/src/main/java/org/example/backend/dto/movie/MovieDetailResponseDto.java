@@ -3,6 +3,7 @@ package org.example.backend.dto.movie;
 import org.example.backend.dto.common.SliceResponseDto;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 public record MovieDetailResponseDto(
         Long tmdbId,
@@ -10,7 +11,10 @@ public record MovieDetailResponseDto(
         String releaseDate,
         String posterUrl,
         String overview,
-        Float voteAverage,        // TMDB 평점
+        Float voteAverage,        // tmdb 평점
+        Integer voteCount,        // tmdb 투표 수
+        Integer runtime,          // 플레이타임 (분 단위)
+        List<Long> genreIds,      // 장르 ID 목록
         Double userAverageRating,  // 우리회원 평균 평점
         String trailerUrl,
         SliceResponseDto<MovieUserRatingResponseDto> userRatings,

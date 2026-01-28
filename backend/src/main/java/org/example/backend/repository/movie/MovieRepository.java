@@ -63,7 +63,7 @@ public interface MovieRepository extends JpaRepository<Movie, Long> {
             Pageable pageable
     );
     
-    /** 우리회원평가순 정렬을 위한 쿼리 (JOIN 사용) */
+    /** 우리회원평가순 정렬을 위한 쿼리 */
     @Query("""
             SELECT DISTINCT m
             FROM Movie m

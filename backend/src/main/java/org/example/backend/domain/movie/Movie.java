@@ -47,6 +47,8 @@ public class Movie {
 
     private Float tmdbRate;
 
+    private Integer runtime; // 플레이타임 (분 단위)
+
     // 인기상영, 전체인기 등 타입 복수 존재해서 조인테이블 추가
     @ElementCollection(fetch = FetchType.LAZY)
     @CollectionTable(

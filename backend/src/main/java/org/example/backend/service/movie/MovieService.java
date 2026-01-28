@@ -145,6 +145,9 @@ public class MovieService {
                     posterUrl,
                     tmdbMovie.overview(),
                     tmdbMovie.voteAverage(),
+                    tmdbMovie.voteCount(),
+                    tmdbMovie.runtime(),
+                    tmdbMovie.genreIds(),
                     userAverageRating,
                     trailerUrl,
                     userRatings,
@@ -170,6 +173,9 @@ public class MovieService {
                 posterUrl,
                 tmdbMovie.overview(),
                 tmdbMovie.voteAverage(),
+                tmdbMovie.voteCount(),
+                tmdbMovie.runtime(),
+                tmdbMovie.genreIds(),
                 userAverageRating,
                 trailerUrl,
                 userRatings,
@@ -180,12 +186,6 @@ public class MovieService {
                 watchedMovieOpt.isPresent(),
                 watchedMovieOpt.map(WatchedMovie::getScore).orElse(null)
         );
-    }
-
-    /** 영화 상세 조회 (비로그인) */
-    @Transactional(readOnly = true)
-    public MovieDetailResponseDto getMovieDetail(Long tmdbId, int commentPage, int commentSize) {
-        return getMovieDetail(tmdbId, null, commentPage, commentSize);
     }
 
     /** 사용자 평점/코멘트 등록/수정 */
@@ -233,13 +233,14 @@ public class MovieService {
         log.info("사용자 평점 삭제 완료: userId={}, tmdbId={}", userId, tmdbId);
     }
 
-    /** 영화 목록 조회 (필터링, 정렬 지원) - TMDB API 직접 호출 */
+    /** 영화 찾기 (제목, 장르, 연도, 정렬 필터링) */
     @Transactional(readOnly = true)
     public Slice<MovieResponseDto> getMovies(
-            String sortBy, 
-            String keyword, 
-            Integer releaseYearFrom, 
-            Integer releaseYearTo, 
+            String keyword,
+            Long genreId,
+            Integer releaseYearFrom,
+            Integer releaseYearTo,
+            String sortBy,
             Pageable pageable) {
         // 정렬 옵션 검증 및 기본값 설정
         if (sortBy == null || sortBy.isBlank()) {
@@ -248,18 +249,41 @@ public class MovieService {
         
         Slice<TmdbMovieResponseDto> tmdbMovies;
         
-        // 제목 검색인 경우 search API 사용
+        // 제목 검색인 경우 search api 사용 
         if (keyword != null && keyword.length() >= 2) {
             tmdbMovies = tmdbClient.searchMovies(keyword, pageable);
-        } else if ("rating".equalsIgnoreCase(sortBy)) {
-            // 평점순은 Top Rated API 사용 (TMDB 사이트와 동일)
-            tmdbMovies = tmdbClient.fetchTopRatedMovies(pageable);
         } else {
-            // discover API 사용 (연도 범위 필터링, 정렬)
-            tmdbMovies = tmdbClient.discoverMovies(pageable, sortBy, releaseYearFrom, releaseYearTo);
+            // discover api 사용 (장르, 연도 범위, 정렬 필터링)
+            tmdbMovies = tmdbClient.discoverMovies(pageable, genreId, releaseYearFrom, releaseYearTo, sortBy);
         }
         
-        // TMDB API 응답을 DTO로 변환
+        return convertTmdbMoviesToResponseDto(tmdbMovies, pageable);
+    }
+
+    /** 전체 인기작 목록 조회 (tmdb api 그대로) */
+    @Transactional(readOnly = true)
+    public Slice<MovieResponseDto> getPopularMoviesList(Pageable pageable) {
+        Slice<TmdbMovieResponseDto> tmdbMovies = tmdbClient.fetchPopularMovies(pageable);
+        return convertTmdbMoviesToResponseDto(tmdbMovies, pageable);
+    }
+
+    /** 인기 상영작 목록 조회 (tmdb api 그대로) */
+    @Transactional(readOnly = true)
+    public Slice<MovieResponseDto> getNowPlayingMoviesList(Pageable pageable) {
+        Slice<TmdbMovieResponseDto> tmdbMovies = tmdbClient.fetchNowPlayingMovies(pageable);
+        return convertTmdbMoviesToResponseDto(tmdbMovies, pageable);
+    }
+
+    /** 개봉 예정 영화 목록 조회 (tmdb api 그대로) */
+    @Transactional(readOnly = true)
+    public Slice<MovieResponseDto> getUpcomingMoviesList(Pageable pageable) {
+        Slice<TmdbMovieResponseDto> tmdbMovies = tmdbClient.fetchUpcomingMovies(pageable);
+        return convertTmdbMoviesToResponseDto(tmdbMovies, pageable);
+    }
+
+    /** tmdb api 응답객체 -> MovieResponseDto 변환 (공통) */
+    private Slice<MovieResponseDto> convertTmdbMoviesToResponseDto(
+            Slice<TmdbMovieResponseDto> tmdbMovies, Pageable pageable) {
         List<TmdbMovieResponseDto> tmdbMovieList = tmdbMovies.getContent();
         
         // 우리회원 평균 평점 계산 (DB에 있는 영화만)
@@ -326,18 +350,8 @@ public class MovieService {
         boolean hasNext = content.size() == pageable.getPageSize();
         return new SliceImpl<>(content, pageable, hasNext);
     }
-    // @Transactional(readOnly = true, propagation = Propagation.REQUIRES_NEW)
-    // private Slice<MovieResponseDto> getNewMoviesFromDb(MovieType movieType, Pageable pageable) {
-    //     List<Movie> movies = movieRepository.findByMovieTypeOrderByCreatedAtDesc(movieType, pageable);
-    //     List<MovieResponseDto> content = movies.stream()
-    //             .map(this::toMovieResponseDto)
-    //             .collect(Collectors.toList());
-    //
-    //     boolean hasNext = content.size() == pageable.getPageSize();
-    //     return new SliceImpl<>(content, pageable, hasNext);
-    // }
     
-    /** Movie 엔티티를 MovieResponseDto로 변환 */
+    /** movie -> dto */
     private MovieResponseDto toMovieResponseDto(Movie movie, Double userAverageRating) {
         return new MovieResponseDto(
                 movie.getTmdbId(),
@@ -416,7 +430,7 @@ public class MovieService {
         return EnumSet.copyOf(current);
     }
 
-    /** 영화 상세용 대표 트레일러 URL 선택 (YouTube만) */
+    /** 영화 상세용 대표 트레일러 URL 선택 (유튜브 만) */
     private String pickTrailerUrl(List<TmdbVideoDto> videos) {
         if (videos == null || videos.isEmpty()) {
             return null;
@@ -446,7 +460,7 @@ public class MovieService {
         return youtubeUrl;
     }
 
-    /** Movie 엔티티에 트레일러 URL이 저장돼 있으면 그걸 사용, 없으면 TMDB에서 1개 골라서 저장 후 사용 */
+    /** 트레일러 url db에 있으면 사용  | 없으면 받아옴 */
     @Transactional
     public String getOrCreateFixedTrailerUrl(Long tmdbId) {
         Movie movie = movieRepository.findByTmdbId(tmdbId).orElse(null);
@@ -470,7 +484,7 @@ public class MovieService {
         return pickedUrl;
     }
 
-    /** 영화 기본정보 저장/업데이트(TMDB 기준) */
+    /** 영화 기본정보 저장/업데이트(tmdb 기준) */
     @Transactional
     public Movie saveOrUpdateMovieBase(TmdbMovieResponseDto tmdbMovie) {
         return movieRepository.findByTmdbId(tmdbMovie.id())
@@ -483,6 +497,7 @@ public class MovieService {
                                     : null)
                             .overview(tmdbMovie.overview())
                             .tmdbRate(tmdbMovie.voteAverage())
+                            .runtime(tmdbMovie.runtime())
                             .build();
                     return movieRepository.save(updatedMovie);
                 })
@@ -492,7 +507,7 @@ public class MovieService {
                 });
     }
 
-    /** tmdbId로 영화 조회 또는 생성 (공통 메서드) */
+    /** tmdbId로 영화 조회 또는 생성 (공통) */
     @Transactional
     public Movie getOrCreateMovieByTmdbId(Long tmdbId) {
         return movieRepository.findByTmdbId(tmdbId)

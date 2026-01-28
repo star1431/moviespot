@@ -51,7 +51,7 @@ public class ReviewService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다: " + userId));
         
-        // tmdbId로 영화 조회, 없으면 TMDB API에서 가져와서 자동 생성
+        // tmdbId로 영화 조회, 없으면 tmdb api에서 가져와서 자동 생성
         Movie movie = movieService.getOrCreateMovieByTmdbId(requestDto.tmdbId());
 
         Review review = Review.builder()
