@@ -9,9 +9,9 @@
 
 ### 2.1 메인 페이지
 
-메인 페이지에서는 다음 영화 목록을 **DB에서 빠르게 조회**합니다 (각 10개씩):
+메인 페이지에서는 다음 영화 목록을 **DB에서 빠르게 조회** (각 10개씩):
 - **현재 상영 중**: `GET /api/movies/now-playing` (DB 조회)
-- **요즘 인기 영화**: `GET /api/movies/popular` (DB 조회)
+- **Top Rated 영화**: `GET /api/movies/top-rated` (DB 조회, TMDB의 top_rated API 사용)
 
 **특징**:
 - DB에 저장된 최신 데이터를 빠르게 조회
@@ -23,7 +23,7 @@
 영화 목록 페이지에서는 다음 영화 목록을 **TMDB API에서 직접 조회** (Slice):
 - **현재 상영 중**: `GET /api/movies/now-playing/list` (TMDB API 직접 호출)
 - **개봉 예정**: `GET /api/movies/upcoming/list` (TMDB API 직접 호출)
-- **요즘 인기 영화**: `GET /api/movies/popular/list` (TMDB API 직접 호출)
+- **Top Rated 영화**: `GET /api/movies/top-rated/list` (TMDB API 직접 호출, TMDB의 top_rated API 사용)
 - **영화 찾기**: `GET /api/movies` (TMDB API 직접 호출)
   - 제목 검색 (`keyword`)
   - 장르 필터 (`genreId`)
@@ -53,7 +53,7 @@
 ### 3.1 DB 저장 대상
 
 다음 데이터는 DB에 저장:
-- **메인 페이지용 영화 목록**: `popular`, `now_playing` 각 10개씩
+- **메인 페이지용 영화 목록**: `top_rated`, `now_playing` 각 10개씩
 - **장르 목록**: 애플리케이션 시작 시 자동 삽입 (tmdb 장르 -> db)
 - **사용자 평점/코멘트**: 사용자가 작성한 평점 및 코멘트
 - **본 영화 목록**: 사용자가 본 영화 기록
@@ -64,7 +64,7 @@
 ### 3.2 DB 미저장 대상
 
 다음 데이터는 DB에 저장하지 않고 TMDB API에서 직접 조회:
-- **영화 목록 페이지용 영화 목록**: `popular/list`, `now-playing/list`, `upcoming/list`
+- **영화 목록 페이지용 영화 목록**: `top-rated/list`, `now-playing/list`, `upcoming/list`
 - **영화 찾기 결과**: `GET /api/movies` 검색/필터링 결과
 - **영화 상세 정보**: `GET /api/movies/{tmdbId}` 상세 정보
 
@@ -77,12 +77,12 @@
 
 ### 4.1 메인 페이지용 API (DB 조회)
 
-- `GET /api/movies/popular`: 전체 인기작 목록 (DB 조회, 10개)
+- `GET /api/movies/top-rated`: Top Rated 영화 목록 (DB 조회, 10개, TMDB의 top_rated API 사용)
 - `GET /api/movies/now-playing`: 인기 상영작 목록 (DB 조회, 10개)
 
 ### 4.2 영화 목록 페이지용 API (TMDB API 직접 호출)
 
-- `GET /api/movies/popular/list`: 전체 인기작 목록 (TMDB API)
+- `GET /api/movies/top-rated/list`: Top Rated 영화 목록 (TMDB API, TMDB의 top_rated API 사용)
 - `GET /api/movies/now-playing/list`: 인기 상영작 목록 (TMDB API)
 - `GET /api/movies/upcoming/list`: 개봉 예정 영화 목록 (TMDB API)
 - `GET /api/movies`: 영화 찾기 (제목, 장르, 연도, 정렬 필터링)

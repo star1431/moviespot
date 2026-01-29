@@ -1,5 +1,6 @@
 package org.example.backend.config;
 
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.example.backend.security.JwtAuthenticationFilter;
 import org.example.backend.security.OAuth2SuccessHandler;
@@ -18,6 +19,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
@@ -59,6 +61,23 @@ public class SecurityConfig {
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         .anyRequest().authenticated()
                 )
+                // 인증/인가 실패 시 API 요청에는 401/403 JSON, 그 외에는 기본 동작 사용
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            if (isApiRequest(request.getRequestURI())) {
+                                writeError(response, HttpServletResponse.SC_UNAUTHORIZED, "UNAUTHORIZED");
+                            } else {
+                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+                            }
+                        })
+                        .accessDeniedHandler((request, response, accessDeniedException) -> {
+                            if (isApiRequest(request.getRequestURI())) {
+                                writeError(response, HttpServletResponse.SC_FORBIDDEN, "FORBIDDEN");
+                            } else {
+                                response.sendError(HttpServletResponse.SC_FORBIDDEN);
+                            }
+                        })
+                )
                 .oauth2Login(oauth2 -> oauth2
                         .userInfoEndpoint(userInfo -> userInfo
                                 .userService(customOAuth2UserService)
@@ -69,6 +88,16 @@ public class SecurityConfig {
                 .formLogin(AbstractHttpConfigurer::disable);
 
         return http.build();
+    }
+
+    private boolean isApiRequest(String uri) {
+        return uri != null && uri.startsWith("/api/");
+    }
+
+    private void writeError(HttpServletResponse response, int status, String message) throws IOException {
+        response.setStatus(status);
+        response.setContentType("application/json;charset=UTF-8");
+        response.getWriter().write("{\"error\":\"" + message + "\"}");
     }
 
     @Bean

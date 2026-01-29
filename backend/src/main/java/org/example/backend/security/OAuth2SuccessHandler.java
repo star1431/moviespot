@@ -1,10 +1,10 @@
 package org.example.backend.security;
 
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.example.backend.service.user.AuthService;
+import org.example.backend.util.CookieUtil;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
@@ -20,9 +20,13 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     private final JwtTokenizer jwtTokenizer;
     private final AuthService authService;
+    private final CookieUtil cookieUtil;
 
     @Value("${jwt.refresh-expiration}")
     private long refreshExpirationMs;
+
+    @Value("${cors.allowed-origins}")
+    private String allowedOrigins;
 
     @Override
     public void onAuthenticationSuccess(
@@ -43,24 +47,16 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
         authService.saveRefreshToken(customPrincipal.getUser(), refreshToken, expiresAt);
 
-        // 액세스 -> HttpOnly 쿠키
-        Cookie accessTokenCookie = new Cookie("accessToken", accessToken);
-        accessTokenCookie.setHttpOnly(true);
-        accessTokenCookie.setSecure(request.isSecure());
-        accessTokenCookie.setPath("/");
-        accessTokenCookie.setMaxAge((int) (jwtTokenizer.getExpirationTime() / 1000)); // 초 단위
-        response.addCookie(accessTokenCookie);
+        // 쿠키 설정
+        cookieUtil.addAccessTokenCookie(response, accessToken);
+        cookieUtil.addRefreshTokenCookie(response, refreshToken);
 
-        // 리플래시 -> HttpOnly 쿠키
-        Cookie refreshTokenCookie = new Cookie("refreshToken", refreshToken);
-        refreshTokenCookie.setHttpOnly(true);
-        refreshTokenCookie.setSecure(request.isSecure());
-        refreshTokenCookie.setPath("/");
-        refreshTokenCookie.setMaxAge((int) (refreshExpirationMs / 1000)); // 초 단위
-        response.addCookie(refreshTokenCookie);
+        // CORS_ALLOWED_ORIGINS에서 첫 번째 origin을 프론트엔드 URL로 사용
+        String frontendUrl = getAllowedOrigins().split(",")[0].trim();
+        getRedirectStrategy().sendRedirect(request, response, frontendUrl + "/oauth2/redirect");
+    }
 
-        // 로그인 성공 후 리다이렉트 (임시)
-        getRedirectStrategy().sendRedirect(request, response, "http://localhost:3000/oauth2/redirect");
+    private String getAllowedOrigins() {
+        return allowedOrigins != null && !allowedOrigins.isEmpty() ? allowedOrigins : "http://localhost:3000";
     }
 }
-

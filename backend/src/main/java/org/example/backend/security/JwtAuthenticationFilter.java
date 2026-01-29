@@ -2,11 +2,11 @@ package org.example.backend.security;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.example.backend.repository.user.UserRepository;
+import org.example.backend.util.CookieUtil;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -21,6 +21,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtTokenizer jwtTokenizer;
     private final UserRepository userRepository;
+    private final CookieUtil cookieUtil;
 
     @Override
     protected void doFilterInternal(
@@ -54,16 +55,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         // 쿠키에서 토큰 확인
-        Cookie[] cookies = request.getCookies();
-        if (cookies != null) {
-            for (Cookie cookie : cookies) {
-                if ("accessToken".equals(cookie.getName())) {
-                    return cookie.getValue();
-                }
-            }
-        }
-
-        return null;
+        return cookieUtil.getAccessToken(request);
     }
 }
 

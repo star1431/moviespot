@@ -31,22 +31,16 @@ public class MovieController {
         return ResponseEntity.ok(movieService.getMovies(keyword, genreId, releaseYearFrom, releaseYearTo, sortBy, pageable));
     }
 
-    /** 전체 인기작 목록 조회 */
-    @GetMapping("/popular")
-    public ResponseEntity<Slice<MovieResponseDto>> getPopularMovies(Pageable pageable) {
-        return ResponseEntity.ok(movieService.getPopularMovies(pageable));
+    /** 전체 인기작 영화 목록 조회 */
+    @GetMapping("/top-rated")
+    public ResponseEntity<Slice<MovieResponseDto>> getTopRatedMovies(Pageable pageable) {
+        return ResponseEntity.ok(movieService.getTopRatedMovies(pageable));
     }
 
     /** 인기 상영작 목록 조회 */
     @GetMapping("/now-playing")
     public ResponseEntity<Slice<MovieResponseDto>> getNowPlayingMovies(Pageable pageable) {
         return ResponseEntity.ok(movieService.getNowPlayingMovies(pageable));
-    }
-
-    /** 전체 인기작 목록 조회 (영화 목록 페이지용) */
-    @GetMapping("/popular/list")
-    public ResponseEntity<Slice<MovieResponseDto>> getPopularMoviesList(Pageable pageable) {
-        return ResponseEntity.ok(movieService.getPopularMoviesList(pageable));
     }
 
     /** 인기 상영작 목록 조회 (영화 목록 페이지용) */
@@ -59,6 +53,12 @@ public class MovieController {
     @GetMapping("/upcoming/list")
     public ResponseEntity<Slice<MovieResponseDto>> getUpcomingMoviesList(Pageable pageable) {
         return ResponseEntity.ok(movieService.getUpcomingMoviesList(pageable));
+    }
+
+    /** 전체 인기작 목록 조회 (영화 목록 페이지용) */
+    @GetMapping("/top-rated/list")
+    public ResponseEntity<Slice<MovieResponseDto>> getTopRatedMoviesList(Pageable pageable) {
+        return ResponseEntity.ok(movieService.getTopRatedMoviesList(pageable));
     }
 
     /** 영화 상세 조회 */

@@ -17,10 +17,10 @@
 
 ## 1. 메인 화면 (DB 조회)
 
-### 1.1 인기 영화 목록 조회
-**GET** `/movies/popular`
+### 1.1 Top Rated 영화 목록 조회
+**GET** `/movies/top-rated`
 
-**설명**: 전체 인기 영화 목록 조회 (DB에서 빠르게 조회, 10개씩)
+**설명**: Top Rated 영화 목록 조회 (DB에서 빠르게 조회, 10개씩, TMDB의 top_rated API 사용)
 
 **인증**: 불필요
 
@@ -68,10 +68,10 @@
 
 ## 2. 영화 목록 페이지 (TMDB API 직접 호출)
 
-### 2.1 전체 인기작 목록 조회
-**GET** `/movies/popular/list`
+### 2.1 Top Rated 영화 목록 조회
+**GET** `/movies/top-rated/list`
 
-**설명**: 전체 인기 영화 목록 조회 (TMDB API 직접 호출, 무제한 페이지네이션)
+**설명**: Top Rated 영화 목록 조회 (TMDB API 직접 호출, 무제한 페이지네이션, TMDB의 top_rated API 사용)
 
 **인증**: 불필요
 

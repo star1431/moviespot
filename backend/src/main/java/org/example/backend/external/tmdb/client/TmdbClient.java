@@ -30,9 +30,9 @@ public class TmdbClient {
     @Value("${tmdb.api.key}")
     private String tmdbApiKey;
 
-    /** 인기 영화 목록 조회 */
-    public Slice<TmdbMovieResponseDto> fetchPopularMovies(Pageable pageable) {
-        return fetchMovies("/movie/popular", pageable, "ko-KR", null);
+    /** 평점 높은 영화 목록 조회 */
+    public Slice<TmdbMovieResponseDto> fetchTopRatedMovies(Pageable pageable) {
+        return fetchMovies("/movie/top_rated", pageable, "ko-KR", null);
     }
 
     /** 개봉 중인 영화 목록 조회 */

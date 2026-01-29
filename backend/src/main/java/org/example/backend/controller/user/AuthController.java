@@ -1,15 +1,13 @@
 package org.example.backend.controller.user;
 
-import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.example.backend.domain.user.User;
 import org.example.backend.dto.user.LoginRequestDto;
 import org.example.backend.dto.user.SignupRequestDto;
-import org.example.backend.security.JwtTokenizer;
 import org.example.backend.service.user.AuthService;
-import org.springframework.beans.factory.annotation.Value;
+import org.example.backend.util.CookieUtil;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,10 +18,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
-    private final JwtTokenizer jwtTokenizer;
-
-    @Value("${jwt.refresh-expiration}")
-    private long refreshExpirationMs;
+    private final CookieUtil cookieUtil;
 
     /** 회원가입 */
     @PostMapping("/signup")
@@ -42,19 +37,8 @@ public class AuthController {
         User user = authService.login(requestDto);
         var tokens = authService.issueTokens(user);
 
-        Cookie accessTokenCookie = new Cookie("accessToken", tokens.accessToken());
-        accessTokenCookie.setHttpOnly(true);
-        accessTokenCookie.setSecure(request.isSecure());
-        accessTokenCookie.setPath("/");
-        accessTokenCookie.setMaxAge((int) (jwtTokenizer.getExpirationTime() / 1000));
-        response.addCookie(accessTokenCookie);
-
-        Cookie refreshTokenCookie = new Cookie("refreshToken", tokens.refreshToken());
-        refreshTokenCookie.setHttpOnly(true);
-        refreshTokenCookie.setSecure(request.isSecure());
-        refreshTokenCookie.setPath("/");
-        refreshTokenCookie.setMaxAge((int) (refreshExpirationMs / 1000));
-        response.addCookie(refreshTokenCookie);
+        cookieUtil.addAccessTokenCookie(response, tokens.accessToken());
+        cookieUtil.addRefreshTokenCookie(response, tokens.refreshToken());
 
         return ResponseEntity.ok().build();
     }
@@ -65,7 +49,7 @@ public class AuthController {
             HttpServletRequest request,
             HttpServletResponse response
     ) {
-        String refreshToken = getRefreshTokenFromCookie(request);
+        String refreshToken = cookieUtil.getRefreshToken(request);
 
         if (refreshToken == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build(); // 401
@@ -76,12 +60,7 @@ public class AuthController {
             String newAccessToken = authService.refreshAccessToken(refreshToken);
 
             // 새 Access Token을 쿠키에 저장
-            Cookie accessTokenCookie = new Cookie("accessToken", newAccessToken);
-            accessTokenCookie.setHttpOnly(true);
-            accessTokenCookie.setSecure(request.isSecure());
-            accessTokenCookie.setPath("/");
-            accessTokenCookie.setMaxAge((int) (jwtTokenizer.getExpirationTime() / 1000));
-            response.addCookie(accessTokenCookie);
+            cookieUtil.addAccessTokenCookie(response, newAccessToken);
 
             return ResponseEntity.ok().build();
         } catch (Exception e) {
@@ -95,38 +74,17 @@ public class AuthController {
             HttpServletRequest request,
             HttpServletResponse response
     ) {
-        String refreshToken = getRefreshTokenFromCookie(request);
+        String refreshToken = cookieUtil.getRefreshToken(request);
 
         if (refreshToken != null) {
             authService.deleteRefreshToken(refreshToken);
         }
 
         // 쿠키 삭제
-        deleteCookie(response, "accessToken", request.isSecure());
-        deleteCookie(response, "refreshToken", request.isSecure());
+        cookieUtil.clearAccessTokenCookie(response);
+        cookieUtil.clearRefreshTokenCookie(response);
 
         return ResponseEntity.ok().build();
-    }
-
-    private String getRefreshTokenFromCookie(HttpServletRequest request) {
-        Cookie[] cookies = request.getCookies();
-        if (cookies != null) {
-            for (Cookie cookie : cookies) {
-                if ("refreshToken".equals(cookie.getName())) {
-                    return cookie.getValue();
-                }
-            }
-        }
-        return null;
-    }
-
-    private void deleteCookie(HttpServletResponse response, String cookieName, boolean secure) {
-        Cookie cookie = new Cookie(cookieName, null);
-        cookie.setHttpOnly(true);
-        cookie.setSecure(secure);
-        cookie.setPath("/");
-        cookie.setMaxAge(0);
-        response.addCookie(cookie);
     }
 }
 
