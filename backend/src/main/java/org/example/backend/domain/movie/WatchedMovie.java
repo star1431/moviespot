@@ -1,6 +1,5 @@
 package org.example.backend.domain.movie;
 
-import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
@@ -34,9 +33,6 @@ public class WatchedMovie {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long watchedMovieId;
-
-    @Column(nullable = false)
-    private int score;
 
     @CreationTimestamp
     private LocalDateTime createdAt;

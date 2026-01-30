@@ -177,8 +177,7 @@ public class MovieService {
                     null,
                     null,
                     null,
-                    false,
-                    null
+                    false
             );
         }
 
@@ -206,8 +205,7 @@ public class MovieService {
                 userRatingOpt.map(UserRating::getScore).orElse(null),
                 userRatingOpt.map(UserRating::getComment).orElse(null),
                 userRatingOpt.map(UserRating::isRecommended).orElse(null),
-                watchedMovieOpt.isPresent(),
-                watchedMovieOpt.map(WatchedMovie::getScore).orElse(null)
+                watchedMovieOpt.isPresent()
         );
     }
 
@@ -277,8 +275,7 @@ public class MovieService {
                     null,
                     null,
                     null,
-                    false,
-                    null
+                    false
             );
         }
 
@@ -306,8 +303,7 @@ public class MovieService {
                 userRatingOpt.map(UserRating::getScore).orElse(null),
                 userRatingOpt.map(UserRating::getComment).orElse(null),
                 userRatingOpt.map(UserRating::isRecommended).orElse(null),
-                watchedMovieOpt.isPresent(),
-                watchedMovieOpt.map(WatchedMovie::getScore).orElse(null)
+                watchedMovieOpt.isPresent()
         );
     }
 

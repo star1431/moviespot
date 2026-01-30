@@ -47,7 +47,6 @@ public class WatchedMovieService {
             WatchedMovie existingWatched = existingWatchedOpt.get();
             WatchedMovie updatedWatched = WatchedMovie.builder()
                     .watchedMovieId(existingWatched.getWatchedMovieId())
-                    .score(requestDto.score())
                     .user(existingWatched.getUser())
                     .movie(existingWatched.getMovie())
                     .createdAt(existingWatched.getCreatedAt())
@@ -57,7 +56,6 @@ public class WatchedMovieService {
         } else {
             // 신규 저장
             WatchedMovie newWatched = WatchedMovie.builder()
-                    .score(requestDto.score())
                     .user(user)
                     .movie(movie)
                     .build();
@@ -81,7 +79,6 @@ public class WatchedMovieService {
                         w.getMovie().getTmdbId(),
                         w.getMovie().getTitle(),
                         w.getMovie().getPosterUrl(),
-                        w.getScore(),
                         w.getCreatedAt()  // 본 영화 등록일시
                 ))
                 .collect(Collectors.toList());

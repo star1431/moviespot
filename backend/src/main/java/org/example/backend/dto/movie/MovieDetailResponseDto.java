@@ -24,8 +24,7 @@ public record MovieDetailResponseDto(
         Integer myScore,
         String myComment,
         Boolean myRecommended,
-        Boolean isWatched,
-        Integer myWatchedScore
+        Boolean isWatched
 ) {
 }
 

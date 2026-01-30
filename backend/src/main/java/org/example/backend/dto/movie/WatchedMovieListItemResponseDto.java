@@ -6,7 +6,6 @@ public record WatchedMovieListItemResponseDto(
         Long tmdbId,
         String title,
         String posterUrl,
-        int score,
         LocalDateTime createdAt
 ) {
 }
