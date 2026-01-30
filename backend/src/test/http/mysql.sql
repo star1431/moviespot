@@ -8,6 +8,7 @@ select * from refresh_tokens;
 select * from genres;
 select * from keywords;
 select * from movies;
+select * from movie_genre;
 select * from movie_types;
 -- 트레일러 URL 컬럼 확인
 select movie_id, tmdb_id, title, trailer_url from movies order by movie_id desc limit 20;
