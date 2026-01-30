@@ -1,13 +1,14 @@
 package org.example.backend.service.user;
 
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.Optional;
+
 import org.example.backend.domain.user.User;
 import org.example.backend.repository.user.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Optional;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
@@ -42,8 +43,19 @@ public class UserService {
 
     /** 닉네임 수정 */
     public User updateNickname(Long userId, String nickname) {
+        if (nickname == null || nickname.isBlank()) {
+            throw new RuntimeException("닉네임 빈값입니다.");
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다: " + userId));
+
+        userRepository.findByNickname(nickname)
+                .filter(other -> !other.getUserId().equals(userId))
+                .ifPresent(other -> {
+                    throw new RuntimeException("이미 사용 중인 닉네임입니다.");
+                });
+
         User updated = user.toBuilder()
                 .nickname(nickname)
                 .build();

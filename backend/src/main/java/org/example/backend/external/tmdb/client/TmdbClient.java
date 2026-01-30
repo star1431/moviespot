@@ -87,7 +87,8 @@ public class TmdbClient {
                             koreanMovie.voteAverage(),
                             koreanMovie.voteCount(),
                             koreanMovie.runtime(),
-                            koreanMovie.genreIds()
+                            koreanMovie.genreIds(),
+                            koreanMovie.genres()
                     );
                 }
             }
