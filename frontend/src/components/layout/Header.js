@@ -67,10 +67,13 @@ export default function Header() {
           <div className="flex items-center gap-4">
             {isAuthenticated ? (
               <>
-                <div className="hidden md:flex items-center gap-2 text-sm text-gray-700">
+                <Link
+                  href="/profile"
+                  className="hidden md:flex items-center gap-2 rounded-md px-2 py-1 text-sm text-gray-700 transition-colors hover:bg-gray-100 hover:text-blue-600 active:bg-gray-200"
+                >
                   <User className="h-4 w-4" />
                   <span>{user?.nickname || user?.email || '사용자'}</span>
-                </div>
+                </Link>
                 <button
                   onClick={handleLogout}
                   className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100"

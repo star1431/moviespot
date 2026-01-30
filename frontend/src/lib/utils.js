@@ -61,6 +61,8 @@ export const storage = {
 
 // 인증 헬퍼
 export const isAuthenticated = () => {
-  return !!storage.get('token');
+  // 쿠키 기반 인증으로 전환됨: 프론트에서는 토큰을 로컬스토리지로 관리하지 않음
+  // (정확한 로그인 여부는 useAuth(/users/me)로 판단)
+  return false;
 };
 

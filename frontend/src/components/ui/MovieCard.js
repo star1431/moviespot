@@ -3,11 +3,31 @@ import Image from 'next/image';
 import { getImageUrl, formatRating } from '@/lib/utils';
 import { Star, Film } from 'lucide-react';
 
-export default function MovieCard({ movie }) {
+/**
+ * 영화 카드 컴포넌트
+ * @param {Object} movie - 영화 정보
+ * @param {string} highlightKeyword - 하이라이트할 검색어 (선택)
+ */
+export default function MovieCard({ movie, highlightKeyword }) {
   if (!movie) return null;
 
   const { id, tmdbId, title, posterUrl, voteAverage, userAverageRating, releaseDate } = movie;
   const movieId = tmdbId || id;
+
+  const highlightText = (text, keyword) => {
+    if (!keyword || !text) return text;
+    const regex = new RegExp(`(${keyword})`, 'gi');
+    const parts = text.split(regex);
+    return parts.map((part, index) =>
+      regex.test(part) ? (
+        <span key={index} className="text-blue-600 font-semibold">
+          {part}
+        </span>
+      ) : (
+        part
+      )
+    );
+  };
 
   return (
     <Link href={`/movies/${movieId}`} className="group">
@@ -32,7 +52,7 @@ export default function MovieCard({ movie }) {
         {/* 영화 정보 */}
         <div className="p-3">
           <h3 className="mb-2 line-clamp-2 text-sm font-semibold text-gray-900 group-hover:text-blue-600">
-            {title}
+            {highlightKeyword ? highlightText(title, highlightKeyword) : title}
           </h3>
           
           <div className="flex items-center justify-between text-xs text-gray-600">

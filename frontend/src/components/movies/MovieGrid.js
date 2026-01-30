@@ -14,6 +14,9 @@ export default function MovieGrid({ fetchFunction, params = {} }) {
   const [page, setPage] = useState(0);
   const [hasNext, setHasNext] = useState(false);
   const size = 20;
+  
+  // 검색어 추출 (하이라이트용)
+  const searchKeyword = params?.keyword || '';
 
   useEffect(() => {
     if (!fetchFunction) return;
@@ -89,7 +92,11 @@ export default function MovieGrid({ fetchFunction, params = {} }) {
     <div>
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
         {movies.map((movie, index) => (
-          <MovieCard key={movie.id || movie.tmdbId || index} movie={movie} />
+          <MovieCard
+            key={movie.id || movie.tmdbId || index}
+            movie={movie}
+            highlightKeyword={searchKeyword}
+          />
         ))}
       </div>
 

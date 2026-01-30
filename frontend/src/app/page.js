@@ -29,12 +29,12 @@ export default function Home() {
       {/* 영화 섹션 */}
       <div className="container mx-auto px-4 py-12">
         <MovieSlider
-          title="현재 상영 중"
+          title="현재 상영 중인 영화 Top 10"
           fetchFunction={movieAPI.getNowPlaying}
           className="mb-12"
         />
         <MovieSlider
-          title="평점 높은 영화"
+          title="평점 높은 영화 Top 10"
           fetchFunction={movieAPI.getTopRated}
         />
       </div>

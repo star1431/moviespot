@@ -2,16 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
-import { userAPI, genreAPI } from '@/lib/api';
+import { userAPI, genreAPI, watchedMovieAPI } from '@/lib/api';
 import MovieCard from '@/components/ui/MovieCard';
-import { MovieGridSkeleton } from '@/components/ui/Skeleton';
+import Skeleton, { MovieGridSkeleton } from '@/components/ui/Skeleton';
 import Button from '@/components/ui/Button';
-import { Skeleton } from '@/components/ui/Skeleton';
+import MovieSearchModal from '@/components/movies/MovieSearchModal';
 import { Film, Star, BookOpen, X, Plus, LogIn } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 export default function CollectionPage() {
-  const { user, isAuthenticated, loading: authLoading } = useAuth();
+  const router = useRouter();
+  const { user, isAuthenticated, loading: authLoading, refreshUser } = useAuth();
   const [genres, setGenres] = useState([]);
   const [userGenres, setUserGenres] = useState([]);
   const [keywords, setKeywords] = useState([]);
@@ -19,14 +21,19 @@ export default function CollectionPage() {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newKeyword, setNewKeyword] = useState('');
+  const [showMovieModal, setShowMovieModal] = useState(false);
 
   useEffect(() => {
-    if (!authLoading) {
-      if (isAuthenticated) {
-        loadData();
-      } else {
-        setLoading(false);
-      }
+    // authLoading이 false가 될 때까지 대기
+    if (authLoading) {
+      return;
+    }
+    
+    // 로그인 상태에 따라 데이터 로드 또는 로딩 종료
+    if (isAuthenticated) {
+      loadData();
+    } else {
+      setLoading(false);
     }
   }, [isAuthenticated, authLoading]);
 
@@ -96,6 +103,27 @@ export default function CollectionPage() {
       await loadData();
     } catch (error) {
       console.error('Failed to remove keyword:', error);
+    }
+  };
+
+  const handleMovieSelect = async (movie) => {
+    try {
+      const ok = (await refreshUser?.()) === true;
+      if (!ok) {
+        alert('로그인이 필요합니다. 다시 로그인해주세요.');
+        setShowMovieModal(false);
+        router.push('/login');
+        return;
+      }
+
+      await watchedMovieAPI.createOrUpdate({
+        tmdbId: movie.tmdbId,
+      });
+      await loadData();
+      setShowMovieModal(false);
+    } catch (error) {
+      console.error('Failed to add watched movie:', error);
+      alert('본 영화 등록에 실패했습니다.');
     }
   };
 
@@ -247,11 +275,21 @@ export default function CollectionPage() {
                 <Film className="h-5 w-5 text-green-600" />
                 <h2 className="text-xl font-bold text-gray-900">내가 본 영화</h2>
               </div>
-              <Link href="/collection/watched">
-                <Button variant="ghost" size="sm">
-                  더보기
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowMovieModal(true)}
+                >
+                  <Plus className="mr-1 h-4 w-4" />
+                  추가
                 </Button>
-              </Link>
+                <Link href="/collection/watched">
+                  <Button variant="ghost" size="sm">
+                    더보기
+                  </Button>
+                </Link>
+              </div>
             </div>
             {watchedMovies.length > 0 ? (
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
@@ -260,9 +298,18 @@ export default function CollectionPage() {
                 ))}
               </div>
             ) : (
-              <p className="py-8 text-center text-sm text-gray-500">
-                본 영화가 없습니다
-              </p>
+              <div className="py-8 text-center">
+                <p className="mb-4 text-sm text-gray-500">
+                  본 영화가 없습니다
+                </p>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowMovieModal(true)}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  영화 추가하기
+                </Button>
+              </div>
             )}
           </div>
 
@@ -308,6 +355,13 @@ export default function CollectionPage() {
             )}
           </div>
         </div>
+
+        {/* 영화 검색 모달 */}
+        <MovieSearchModal
+          isOpen={showMovieModal}
+          onClose={() => setShowMovieModal(false)}
+          onSelect={handleMovieSelect}
+        />
       </div>
     </div>
   );
