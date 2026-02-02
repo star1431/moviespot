@@ -40,4 +40,17 @@ public interface ReviewRepository extends JpaRepository<Review, Long> {
             ORDER BY r.createdAt DESC
             """)
     List<Review> findByMovieTmdbId(@Param("tmdbId") Long tmdbId, Pageable pageable);
+
+    /** 영화 제목으로 리뷰 목록 조회 (사용자 입력용) */
+    @Query("""
+            SELECT r
+            FROM Review r
+            JOIN r.movie m
+            WHERE LOWER(m.title) LIKE LOWER(CONCAT('%', :movieTitle, '%'))
+            ORDER BY r.createdAt DESC
+            """)
+    List<Review> findByMovieTitleContainsIgnoreCase(
+            @Param("movieTitle") String movieTitle,
+            Pageable pageable
+    );
 }

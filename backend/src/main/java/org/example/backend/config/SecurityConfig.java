@@ -61,20 +61,21 @@ public class SecurityConfig {
                         .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                         .anyRequest().authenticated()
                 )
-                // 인증/인가 실패 시 API 요청에는 401/403 JSON, 그 외에는 기본 동작 사용
                 .exceptionHandling(ex -> ex
+                        // 인증 실패 시  401
                         .authenticationEntryPoint((request, response, authException) -> {
-                            if (isApiRequest(request.getRequestURI())) {
+                            if (isApiRequest(request.getRequestURI())) { 
                                 writeError(response, HttpServletResponse.SC_UNAUTHORIZED, "UNAUTHORIZED");
                             } else {
-                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED); // 401 
                             }
                         })
+                        // 인가 실패 시 403
                         .accessDeniedHandler((request, response, accessDeniedException) -> {
-                            if (isApiRequest(request.getRequestURI())) {
+                            if (isApiRequest(request.getRequestURI())) { 
                                 writeError(response, HttpServletResponse.SC_FORBIDDEN, "FORBIDDEN");
                             } else {
-                                response.sendError(HttpServletResponse.SC_FORBIDDEN);
+                                response.sendError(HttpServletResponse.SC_FORBIDDEN); // 403 
                             }
                         })
                 )

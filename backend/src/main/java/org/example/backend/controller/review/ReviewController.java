@@ -53,11 +53,14 @@ public class ReviewController {
     @GetMapping
     public ResponseEntity<Slice<ReviewResponseDto>> getReviews(
             Pageable pageable,
-            @RequestParam(required = false) String sort,
+            // NOTE: sort는 Spring Pageable 예약 파라미터라서 사용하면
+            // sort=latest 같은 값이 엔티티 필드 정렬로 해석되어 500이 발생할 수 있음
+            @RequestParam(required = false, name = "sortBy") String sortBy,
             @RequestParam(required = false) String keyword,
-            @RequestParam(required = false) Long tmdbId
+            @RequestParam(required = false) Long tmdbId,
+            @RequestParam(required = false) String movieTitle
     ) {
-        return ResponseEntity.ok(reviewService.findAll(pageable, sort, keyword, tmdbId));
+        return ResponseEntity.ok(reviewService.findAll(pageable, sortBy, keyword, tmdbId, movieTitle));
     }
 
     /** 리뷰 상세 조회  */

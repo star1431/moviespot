@@ -356,6 +356,7 @@ public class MovieService {
     @Transactional(readOnly = true)
     public Slice<MovieResponseDto> getMovies(
             String keyword,
+            String keywordType,
             Long genreId,
             Integer releaseYearFrom,
             Integer releaseYearTo,
@@ -366,6 +367,37 @@ public class MovieService {
             sortBy = "latest";
         }
         
+        // review keyword 검색: db 리뷰 키워드 기반
+        if ("review".equalsIgnoreCase(keywordType) && keyword != null && !keyword.isBlank()) {
+            var safePage = org.springframework.data.domain.PageRequest.of(
+                    pageable.getPageNumber(),
+                    pageable.getPageSize() + 1
+            );
+
+            List<Movie> fetched = movieRepository.findMoviesByReviewKeyword(keyword.trim(), safePage);
+            boolean hasNext = fetched.size() > pageable.getPageSize();
+            List<Movie> pageContent = hasNext ? fetched.subList(0, pageable.getPageSize()) : fetched;
+
+            // 평균 평점 맵(우리회원 평균)
+            List<Long> tmdbIds = pageContent.stream().map(Movie::getTmdbId).toList();
+            Map<Long, Double> averageRatingMap = new HashMap<>();
+            if (!tmdbIds.isEmpty()) {
+                List<Object[]> ratingResults = userRatingRepository.calculateAverageRatingsByTmdbIds(tmdbIds);
+                for (Object[] result : ratingResults) {
+                    Long tmdbId = (Long) result[0];
+                    Double avgRating = (Double) result[1];
+                    averageRatingMap.put(tmdbId, avgRating);
+                }
+            }
+
+            final Map<Long, Double> finalRatingMap = averageRatingMap;
+            List<MovieResponseDto> content = pageContent.stream()
+                    .map(m -> toMovieResponseDto(m, finalRatingMap.get(m.getTmdbId())))
+                    .toList();
+
+            return new SliceImpl<>(content, pageable, hasNext);
+        }
+
         Slice<TmdbMovieResponseDto> tmdbMovies;
         
         // 제목 검색인 경우 search api 사용 

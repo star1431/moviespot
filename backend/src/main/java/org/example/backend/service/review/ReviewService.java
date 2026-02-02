@@ -114,7 +114,7 @@ public class ReviewService {
 
     /** 리뷰 목록 조회 (페이지네이션) */
     @Transactional(readOnly = true)
-    public Slice<ReviewResponseDto> findAll(Pageable pageable, String sort, String keyword, Long tmdbId) {
+    public Slice<ReviewResponseDto> findAll(Pageable pageable, String sort, String keyword, Long tmdbId, String movieTitle) {
         List<Review> reviews;
         boolean hasNext;
 
@@ -122,6 +122,13 @@ public class ReviewService {
             // 영화별 리뷰 조회 (tmdbId 사용)
             List<Review> fetched = reviewRepository.findByMovieTmdbId(tmdbId, 
                     org.springframework.data.domain.PageRequest.of(pageable.getPageNumber(), pageable.getPageSize() + 1));
+            hasNext = fetched.size() > pageable.getPageSize();
+            reviews = hasNext ? fetched.subList(0, pageable.getPageSize()) : fetched;
+        } else if (movieTitle != null && !movieTitle.isBlank()) {
+            List<Review> fetched = reviewRepository.findByMovieTitleContainsIgnoreCase(
+                    movieTitle.trim(),
+                    org.springframework.data.domain.PageRequest.of(pageable.getPageNumber(), pageable.getPageSize() + 1)
+            );
             hasNext = fetched.size() > pageable.getPageSize();
             reviews = hasNext ? fetched.subList(0, pageable.getPageSize()) : fetched;
         } else if (keyword != null && !keyword.isBlank()) {

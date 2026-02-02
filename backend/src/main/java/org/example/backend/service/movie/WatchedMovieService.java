@@ -79,6 +79,7 @@ public class WatchedMovieService {
                         w.getMovie().getTmdbId(),
                         w.getMovie().getTitle(),
                         w.getMovie().getPosterUrl(),
+                        w.getMovie().getTmdbRate(),
                         w.getCreatedAt()  // 본 영화 등록일시
                 ))
                 .collect(Collectors.toList());

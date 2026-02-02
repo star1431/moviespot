@@ -78,4 +78,19 @@ public interface MovieRepository extends JpaRepository<Movie, Long> {
             @Param("releaseYear") Integer releaseYear,
             Pageable pageable
     );
+
+    /** 리뷰 키워드로 영화 검색 (리뷰에 달린 keyword 기준) */
+    @Query("""
+            SELECT r.movie
+            FROM ReviewKeyword rk
+                JOIN rk.review r
+                JOIN rk.keyword k
+            WHERE k.name = :keyword
+            GROUP BY r.movie.movieId
+            ORDER BY MAX(r.createdAt) DESC
+            """)
+    List<Movie> findMoviesByReviewKeyword(
+            @Param("keyword") String keyword,
+            Pageable pageable
+    );
 }
