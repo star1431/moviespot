@@ -1,3 +1,5 @@
+# MovieSpot - ERD 설계
+
 ## ERD (Mermaid)
 
 ```mermaid

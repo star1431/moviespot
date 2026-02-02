@@ -1,4 +1,4 @@
-# TMDB API 연동 가이드
+# MovieSpot - TMDB API 연동 가이드 정리
 
 ## 환경변수 설정
 

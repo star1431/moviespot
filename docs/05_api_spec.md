@@ -1,4 +1,4 @@
-# API 명세서 
+# MovieSpot - API 명세서 
 
 ## 기본 정보
 
