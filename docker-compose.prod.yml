@@ -1,0 +1,57 @@
+services:
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: moviespot-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - backend
+    networks:
+      - moviespot-net
+
+  backend:
+    image: star1431/moviespot-backend:latest
+    container_name: moviespot-backend
+    env_file:
+      - .env
+    expose:
+      - "8080"
+    depends_on:
+      - db
+    restart: unless-stopped
+    networks:
+      - moviespot-net
+
+  frontend:
+    image: star1431/moviespot-frontend:latest
+    container_name: moviespot-frontend
+    env_file:
+      - .env
+    expose:
+      - "3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - moviespot-net
+
+  db:
+    image: mysql:8.0
+    container_name: moviespot-mysql
+    env_file:
+      - .env
+    expose:
+      - "3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    restart: unless-stopped
+    networks:
+      - moviespot-net
+
+networks:
+  moviespot-net:
+
+volumes:
+  db_data:

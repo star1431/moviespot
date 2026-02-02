@@ -13,6 +13,9 @@
 }
 ```
 
+> NOTE: 영화 목록 API(`/api/movies/**`)는 현재 `SliceResponseDto(content,page,size,hasNext)` 형태로 응답합니다.
+> 리뷰 목록 API(`/api/reviews`)는 Spring `Slice` 직렬화 형태로 응답하며 `content`와 `hasNext`를 포함합니다.
+
 ---
 
 ## 1. 메인 화면 (DB 조회)
@@ -41,10 +44,8 @@
       "userAverageRating": 8.5
     }
   ],
-  "pageable": {
-    "pageNumber": 0,
-    "pageSize": 10
-  },
+  "page": 0,
+  "size": 10,
   "hasNext": false
 }
 ```
@@ -123,7 +124,10 @@
 **Query Parameters**:
 - `page` (optional, default: 0): 페이지 번호
 - `size` (optional, default: 10): 페이지 크기
-- `keyword` (optional): 제목 검색 (2글자 이상, 제목 검색 시 `search` API 사용)
+- `keyword` (optional): 검색어
+- `keywordType` (optional, default: `title`): `title` | `review`
+  - `title`: 제목 기반(TMDB `search/movie` 또는 `discover/movie`)
+  - `review`: 리뷰 키워드 기반(우리 DB `ReviewKeyword` 기반으로 영화 목록 조회)
 - `genreId` (optional): 장르 ID 필터링 (예: `28` - 액션)
 - `releaseYearFrom` (optional): 시작 연도 (예: `2020`)
 - `releaseYearTo` (optional): 종료 연도 (예: `2024`)
@@ -132,8 +136,10 @@
   - `rating`: 평점순 (`vote_average.desc`, 최소 투표 수 200명)
 
 **동작 방식**:
-- `keyword`가 2글자 이상이면: `search` API 사용 (제목 검색)
-- 그 외: `discover` API 사용 (장르, 연도 범위, 정렬 필터링)
+- `keywordType=review` && `keyword` 존재: DB에서 리뷰 키워드로 영화 목록 조회
+- 그 외:
+  - `keyword`가 2글자 이상이면: TMDB `search` API 사용 (제목 검색)
+  - 그 외: TMDB `discover` API 사용 (장르, 연도 범위, 정렬 필터링)
 
 **Response 200**: 인기 영화 목록과 동일 형식
 
@@ -144,7 +150,7 @@
 ### 3.1 영화 상세 정보 조회
 **GET** `/movies/{tmdbId}`
 
-**설명**: 영화 상세 정보 조회 (TMDB API에서 직접 조회, 로그인 여부에 따라 사용자 정보 포함)
+**설명**: 영화 상세 정보 조회 (DB 우선. DB에 없을 때만 TMDB 상세 호출 후 DB 저장)
 
 **인증**: 선택사항 (로그인 시 사용자 개인 정보 포함)
 
@@ -169,6 +175,9 @@
   "genreIds": [18, 53],
   "userAverageRating": 8.5,
   "trailerUrl": "https://www.youtube.com/watch?v=abc123",
+  "genres": [
+    { "id": 28, "name": "액션" }
+  ],
   "userRatings": {
     "content": [
       {
@@ -188,8 +197,7 @@
   "myScore": null,
   "myComment": null,
   "myRecommended": null,
-  "isWatched": false,
-  "myWatchedScore": null
+  "isWatched": false
 }
 ```
 
@@ -226,8 +234,7 @@
   "myScore": 9,
   "myComment": "정말 좋은 영화입니다!",
   "myRecommended": true,
-  "isWatched": true,
-  "myWatchedScore": 8
+  "isWatched": true
 }
 ```
 
@@ -241,7 +248,7 @@
 - `trailerUrl`: 트레일러 YouTube URL (DB에 캐싱됨)
 - `userRatings`: 우리회원 평점/코멘트 목록 (페이지네이션)
 - `myRatingCreatedAt`, `myScore`, `myComment`, `myRecommended`: 내 평점/코멘트 정보 (로그인 시만)
-- `isWatched`, `myWatchedScore`: 본 영화 여부 및 평점 (로그인 시만)
+- `isWatched`: 본 영화 여부 (로그인 시만)
 
 ---
 
@@ -282,8 +289,7 @@
 **Request Body**:
 ```json
 {
-  "tmdbId": 550,
-  "score": 8
+  "tmdbId": 550
 }
 ```
 
@@ -324,8 +330,8 @@
       "tmdbId": 550,
       "title": "파이트 클럽",
       "posterUrl": "https://image.tmdb.org/t/p/w500/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
-      "score": 8,
-      "watchedAt": "2026-01-26T10:00:00"
+      "voteAverage": 8.4,
+      "createdAt": "2026-01-26T10:00:00"
     }
   ],
   "pageable": {
@@ -458,9 +464,10 @@
 **Query Parameters**:
 - `page` (optional, default: 0): 페이지 번호
 - `size` (optional, default: 10): 페이지 크기
-- `sort` (optional): 정렬 기준 (`latest`, `popular`, `likes`)
+- `sortBy` (optional): 정렬 기준 (`latest`, `popular`, `likes`)
 - `keyword` (optional): 키워드 필터링 (예: "데이트", "혼자", "힐링", "슬픔")
-- `tmdbId` (optional): 영화별 리뷰 조회
+- `movieTitle` (optional): 영화 제목 검색(부분 일치)
+- `tmdbId` (optional): 영화별 리뷰 조회 (내부/특정 링크에서 사용 가능)
 
 **Response 200**:
 ```json

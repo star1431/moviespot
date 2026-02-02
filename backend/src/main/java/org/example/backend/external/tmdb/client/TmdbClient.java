@@ -32,7 +32,7 @@ public class TmdbClient {
 
     /** 평점 높은 영화 목록 조회 */
     public Slice<TmdbMovieResponseDto> fetchTopRatedMovies(Pageable pageable) {
-        return fetchMovies("/movie/top_rated", pageable, "ko-KR", null);
+        return fetchMovies("/movie/top_rated", pageable, "ko-KR", "KR");
     }
 
     /** 개봉 중인 영화 목록 조회 */
@@ -87,7 +87,8 @@ public class TmdbClient {
                             koreanMovie.voteAverage(),
                             koreanMovie.voteCount(),
                             koreanMovie.runtime(),
-                            koreanMovie.genreIds()
+                            koreanMovie.genreIds(),
+                            koreanMovie.genres()
                     );
                 }
             }
@@ -188,7 +189,9 @@ public class TmdbClient {
                     ? results.subList(0, size)
                     : results;
 
-            boolean hasNext = response.page() < response.totalPages() && results.size() > size;
+            Integer currentPage = response.page();
+            Integer totalPages = response.totalPages();
+            boolean hasNext = currentPage != null && totalPages != null && currentPage < totalPages;
             return new SliceImpl<>(content, pageable, hasNext);
         } catch (WebClientResponseException e) {
             log.error("tmdb api 호출 실패: 영화 검색 - query: {}", query, e);
@@ -220,6 +223,8 @@ public class TmdbClient {
                                 .queryParam("page", page)
                                 .queryParam("language", "ko-KR")
                                 .queryParam("include_adult", false)
+                                .queryParam("with_runtime.gte", 40)
+                                .queryParam("vote_count.gte", 3)
                                 .queryParam("sort_by", convertSortBy(sortBy));
 
                         // 장르 필터
@@ -270,7 +275,9 @@ public class TmdbClient {
                     ? results.subList(0, size)
                     : results;
 
-            boolean hasNext = response.page() < response.totalPages() && results.size() > size;
+            Integer currentPage = response.page();
+            Integer totalPages = response.totalPages();
+            boolean hasNext = currentPage != null && totalPages != null && currentPage < totalPages;
             return new SliceImpl<>(content, pageable, hasNext);
         } catch (WebClientResponseException e) {
             log.error("tmdb api 호출 실패: 영화 찾기 - genreId: {}, releaseYearFrom: {}, releaseYearTo: {}, sortBy: {}", 
@@ -325,7 +332,9 @@ public class TmdbClient {
                     ? results.subList(0, size)
                     : results;
 
-            boolean hasNext = response.page() < response.totalPages() && results.size() > size;
+            Integer currentPage = response.page();
+            Integer totalPages = response.totalPages();
+            boolean hasNext = currentPage != null && totalPages != null && currentPage < totalPages;
             return new SliceImpl<>(content, pageable, hasNext);
         } catch (WebClientResponseException e) {
             log.error("tmdb api 호출 실패: 영화 목록 조회 - path: {}", path, e);
