@@ -1,17 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
-import { reviewAPI } from '@/lib/api';
+import { movieAPI, reviewAPI } from '@/lib/api';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import MovieSearchModal from '@/components/movies/MovieSearchModal';
 import { Star, X, Film } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
-import { getImageUrl } from '@/lib/utils';
+import SelectedMovieInfo from '@/components/movies/SelectedMovieInfo';
 
 export default function CreateReviewClient() {
   const router = useRouter();
@@ -23,6 +22,7 @@ export default function CreateReviewClient() {
     tmdbId: tmdbId ? parseInt(tmdbId) : null,
     movieTitle: tmdbId ? null : null, // 영화 제목 저장
     moviePosterUrl: null,
+    movieReleaseDate: null,
     title: '',
     content: '',
     score: 5,
@@ -32,6 +32,31 @@ export default function CreateReviewClient() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showMovieModal, setShowMovieModal] = useState(false);
+
+  // 영화상세에서 tmdbId로 진입한 경우, 선택된 영화 정보를 자동으로 채운다.
+  useEffect(() => {
+    const id = tmdbId ? parseInt(tmdbId) : null;
+    if (!id) return;
+    if (formData.movieTitle && formData.moviePosterUrl) return;
+
+    const load = async () => {
+      try {
+        const res = await movieAPI.getMovieDetail(id, 0, 1);
+        setFormData((prev) => ({
+          ...prev,
+          tmdbId: id,
+          movieTitle: res.data?.title ?? prev.movieTitle,
+          moviePosterUrl: res.data?.posterUrl ?? prev.moviePosterUrl,
+          movieReleaseDate: res.data?.releaseDate ?? prev.movieReleaseDate,
+        }));
+      } catch (e) {
+        // 영화 정보 로드 실패 시에도 리뷰 작성은 가능(사용자가 모달로 재선택)
+      }
+    };
+
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tmdbId]);
 
   const handleInputChange = (e) => {
     setFormData({
@@ -107,6 +132,7 @@ export default function CreateReviewClient() {
       tmdbId: movie.tmdbId,
       movieTitle: movie.title,
       moviePosterUrl: movie.posterUrl,
+      movieReleaseDate: movie.releaseDate ?? null,
     });
   };
 
@@ -153,23 +179,11 @@ export default function CreateReviewClient() {
               <label className="mb-2 block text-sm font-medium text-gray-700">영화 선택 *</label>
               {formData.tmdbId ? (
                 <div className="flex items-center justify-between rounded-lg border border-gray-300 bg-white p-4">
-                  <div className="flex items-center gap-4">
-                    {formData.moviePosterUrl && (
-                      <div className="relative h-16 w-12 flex-shrink-0 overflow-hidden rounded">
-                        <Image
-                          src={getImageUrl(formData.moviePosterUrl, 'w154')}
-                          alt={formData.movieTitle || '영화 포스터'}
-                          fill
-                          className="object-cover"
-                        />
-                      </div>
-                    )}
-                    <div>
-                      <div className="font-medium text-gray-900">
-                        {formData.movieTitle || `영화 ID: ${formData.tmdbId}`}
-                      </div>
-                    </div>
-                  </div>
+                  <SelectedMovieInfo
+                    title={formData.movieTitle || `영화 ID: ${formData.tmdbId}`}
+                    releaseDate={formData.movieReleaseDate}
+                    posterUrl={formData.moviePosterUrl}
+                  />
                   <Button
                     type="button"
                     variant="outline"
@@ -179,6 +193,7 @@ export default function CreateReviewClient() {
                         tmdbId: null,
                         movieTitle: null,
                         moviePosterUrl: null,
+                        movieReleaseDate: null,
                       })
                     }
                   >
@@ -205,6 +220,7 @@ export default function CreateReviewClient() {
               value={formData.title}
               onChange={handleInputChange}
               placeholder="리뷰 제목을 입력하세요"
+              className="bg-white"
               required
             />
 
@@ -213,21 +229,19 @@ export default function CreateReviewClient() {
               <label className="mb-2 block text-sm font-medium text-gray-700">
                 평점 * ({formData.score}점)
               </label>
-              <div className="flex gap-2">
-                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => (
+              <div className="flex flex-wrap items-center bg-white rounded-lg border border-gray-300">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score, idx) => (
                   <button
                     key={score}
                     type="button"
                     onClick={() => handleScoreChange(score)}
-                    className={`flex h-10 w-10 items-center justify-center rounded-lg border transition-colors ${
-                      formData.score === score
-                        ? 'border-blue-500 bg-blue-50 text-blue-600'
-                        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
-                    }`}
+                    className="group flex h-10 w-10 items-center justify-center bg-transparent p-0 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30"
                   >
                     <Star
                       className={`h-5 w-5 ${
-                        formData.score >= score ? 'fill-yellow-400 text-yellow-400' : ''
+                        formData.score >= score
+                          ? 'fill-yellow-400 text-yellow-400'
+                          : 'fill-transparent text-gray-500'
                       }`}
                     />
                   </button>
@@ -244,7 +258,7 @@ export default function CreateReviewClient() {
                 onChange={handleInputChange}
                 placeholder="리뷰 내용을 입력하세요"
                 rows={10}
-                className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 required
               />
             </div>
@@ -276,24 +290,29 @@ export default function CreateReviewClient() {
                   onChange={(e) => setNewKeyword(e.target.value)}
                   onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddKeyword())}
                   placeholder="키워드 입력 후 Enter"
-                  className="flex-1"
+                  className="flex-1 min-w-0 bg-white"
                 />
-                <Button type="button" onClick={handleAddKeyword}>
-                  추가
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleAddKeyword}
+                  className="whitespace-nowrap px-4"
+                >
+                  +추가
                 </Button>
               </div>
             </div>
 
             {/* 버튼 */}
             <div className="flex gap-4">
-              <Button type="submit" disabled={loading} className="flex-1">
-                {loading ? <LoadingSpinner size="sm" /> : '리뷰 작성'}
-              </Button>
-              <Link href="/reviews">
-                <Button type="button" variant="outline">
+              <Link href="/reviews" className="flex-1">
+                <Button type="button" variant="outline" className="w-full">
                   취소
                 </Button>
               </Link>
+              <Button type="submit" disabled={loading} className="flex-1">
+                {loading ? <LoadingSpinner size="sm" /> : '리뷰 작성'}
+              </Button>
             </div>
           </form>
 

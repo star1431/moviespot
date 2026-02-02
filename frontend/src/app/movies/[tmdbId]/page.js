@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { getImageUrl, formatRating, formatDate } from '@/lib/utils';
 import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Button from '@/components/ui/Button';
-import { Star, Calendar, Clock, MessageSquare, BookOpen, Eye } from 'lucide-react';
+import { Star, Calendar, Clock, MessageSquare, BookOpen, Eye, PlayCircle, Users } from 'lucide-react';
 
 export default function MovieDetailPage() {
   const params = useParams();
@@ -308,7 +308,10 @@ export default function MovieDetailPage() {
           <div className="lg:col-span-2">
             <div className="rounded-lg bg-white p-6 shadow-sm">
               <div className="mb-4 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-gray-900">트레일러</h2>
+                <div className="flex items-center gap-2">
+                  <PlayCircle className="h-5 w-5 text-red-600" />
+                  <h2 className="text-xl font-bold text-gray-900">트레일러</h2>
+                </div>
               </div>
 
               {videoId ? (
@@ -421,7 +424,10 @@ export default function MovieDetailPage() {
         <div className="space-y-8">
           {/* 사용자 평점 목록 */}
           <div className="rounded-lg bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-xl font-bold text-gray-900">사용자 평점</h2>
+            <div className="mb-4 flex items-center gap-2">
+              <Users className="h-5 w-5 text-blue-600" />
+              <h2 className="text-xl font-bold text-gray-900">사용자 평점</h2>
+            </div>
             {movie.userRatings?.content?.length > 0 ? (
               <div className="space-y-4">
                 {movie.userRatings.content.map((userRating, index) => (

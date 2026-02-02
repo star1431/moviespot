@@ -23,14 +23,14 @@ export default function ReviewsClient() {
   const [filters, setFilters] = useState({
     sort: searchParams.get('sort') || 'latest',
     keyword: searchParams.get('keyword') || '',
-    tmdbId: searchParams.get('tmdbId') || '',
+    movieTitle: searchParams.get('movieTitle') || '',
   });
   const size = 10;
 
   useEffect(() => {
     loadReviews();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, filters.sort, filters.keyword, filters.tmdbId]);
+  }, [page, filters.sort, filters.keyword, filters.movieTitle]);
 
   const loadReviews = async () => {
     try {
@@ -38,10 +38,10 @@ export default function ReviewsClient() {
       const params = {
         page,
         size,
-        sort: filters.sort,
+        sortBy: filters.sort,
       };
       if (filters.keyword) params.keyword = filters.keyword;
-      if (filters.tmdbId) params.tmdbId = parseInt(filters.tmdbId);
+      if (filters.movieTitle) params.movieTitle = filters.movieTitle.trim();
 
       const response = await reviewAPI.getList(params);
       setReviews(response.data.content || []);
@@ -94,10 +94,10 @@ export default function ReviewsClient() {
               onChange={(e) => handleFilterChange('keyword', e.target.value)}
             />
             <Input
-              label="영화 ID (선택)"
-              placeholder="TMDB ID"
-              value={filters.tmdbId}
-              onChange={(e) => handleFilterChange('tmdbId', e.target.value)}
+              label="영화 제목 (선택)"
+              placeholder="예) 인터스텔라"
+              value={filters.movieTitle}
+              onChange={(e) => handleFilterChange('movieTitle', e.target.value)}
             />
           </div>
         </div>
