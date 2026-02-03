@@ -1,4 +1,4 @@
-# MovieSpot * 프로젝트 실행 가이드
+# MovieSpot - 개발 환경/실행가이드
 
 ## 1. .env.dev 작성
 

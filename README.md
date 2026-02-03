@@ -11,9 +11,10 @@
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-4-38B2AC?logo=tailwind-css&logoColor=white)
 
-### 멋쟁이사자처럼 백엔드 부트캠프 19기: Java <br> 개인 사이드 프로젝트 <br> Movie Spot
+### 멋쟁이사자처럼 백엔드 부트캠프 19기: Java <br> 사이드 프로젝트
 
 
+![readme-main](./docs/images/ani_moviespot.gif)
 
 </div>
 
@@ -37,12 +38,12 @@ TMDB 연동, 소셜 로그인, 리뷰/좋아요, 내가 본 영화 관리, 관�
 
 ### 1.2 주요 기능
 
-- 소셜 로그인: OAuth2(Client) + JWT 인증 흐름
-- 영화 목록: Top Rated/현재 상영/개봉 예정, 키워드·장르·연도·정렬 검색
-- 영화 상세: TMDB 캐시 + 사용자 평점/코멘트, 내 시청 여부, 트레일러
-- 리뷰: 작성/수정/삭제, 목록(최신/인기/좋아요), 상세, 좋아요 토글
-- 나의 컬렉션: 본 영화 관리, 관심 장르/키워드 설정, 내 리뷰 목록
-- 장르: 앱 시작 시 초기화, 전체 목록 제공
+- **소셜 로그인** : OAuth2(Client) + JWT 인증 흐름
+- **영화 목록** : Top Rated/현재 상영/개봉 예정, 키워드·장르·연도·정렬 검색
+- **영화 상세** : TMDB 캐시 + 사용자 평점/코멘트, 내 시청 여부, 트레일러
+- **리뷰** : 작성/수정/삭제, 목록(최신/인기/좋아요), 상세, 좋아요 토글
+- **나의 컬렉션** : 본 영화 관리, 관심 장르/키워드 설정, 내 리뷰 목록
+- **장르** : 앱 시작 시 초기화, 전체 목록 제공
 
 > API는 JWT 기반이며 일부 엔드포인트는 비로그인 접근을 허용합니다. <br> 상세는 하단 문서 링크를 참고하세요.
 
@@ -78,13 +79,13 @@ TMDB 연동, 소셜 로그인, 리뷰/좋아요, 내가 본 영화 관리, 관�
 
 ### external API
 
-- **TMDB API** (The Movie Database v2)
+- **TMDB API** v2
 
 ---
 
 ## 3. 프로젝트 구조
 
-```
+```bash
 moviespot/
 ├── docker-compose.dev.yml        # 로컬 개발용 Compose
 ├── docker-compose.prod.yml       # 배포용 Compose
@@ -106,20 +107,23 @@ moviespot/
 	├── 03_erd.md
 	├── 04_tmdb_api.md
 	├── 05_api_spec.md
-	├── 06_deploy.md
-	└── trouble_shooting/
+    └── 06_deploy.md
 ```
 
 ---
 
 ## 4. 프로젝트 문서
 
-- 🚩 개발 환경/실행가이드 : [docs/01_project_dev.md](docs/01_project_dev.md)
-- 🔀 설계 및 플로우 : [docs/02_project_design.md](docs/02_project_design.md)
-- 🗃️ ERD 설계 : [docs/03_erd.md](docs/03_erd.md)
-- 📡 TMDB 연동 정리 문서 : [docs/04_tmdb_api.md](docs/04_tmdb_api.md)
-- 📡 API 명세서 : [docs/05_api_spec.md](docs/05_api_spec.md)
-- ☁️ AWS 배포 가이드 : [docs/06_deploy.md](docs/06_deploy.md)
+| 구분 | 링크 |
+|------|------|
+|🚩 개발 환경/실행가이드 | [docs/01_project_dev.md](docs/01_project_dev.md) |
+|🔀 설계 및 플로우 | [docs/02_project_design.md](docs/02_project_design.md) |
+|🗃️ ERD 설계 | [docs/03_erd.md](docs/03_erd.md) |
+|📡 TMDB 연동 정리 문서 | [docs/04_tmdb_api.md](docs/04_tmdb_api.md) |
+|📡 API 명세서 | [docs/05_api_spec.md](docs/05_api_spec.md) |
+|☁️ AWS 배포 가이드 | [docs/06_deploy.md](docs/06_deploy.md) |
+
+
 
 백엔드/프론트 상세는 각 폴더에서 확인하세요:
 
