@@ -1,0 +1,107 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - '.github/workflows/deploy.yml'
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and Push Backend
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/moviespot-backend:latest ./backend
+          docker push ${{ secrets.DOCKER_USERNAME }}/moviespot-backend:latest
+
+      - name: Build and Push Frontend
+        run: |
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/moviespot-frontend:latest ./frontend
+          docker push ${{ secrets.DOCKER_USERNAME }}/moviespot-frontend:latest
+
+      - name: Copy files (docker-compose.prod.yml & nginx.conf)
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: ${{ secrets.EC2_PORT }}
+          source: "docker-compose.prod.yml,nginx.conf"
+          target: "/app"
+
+      - name: Write cat .env
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          port: ${{ secrets.EC2_PORT }}
+          source: "docker-compose.prod.yml,nginx.conf"
+          script: |
+            cd /app/
+            echo ".env 파일 작성중 ...."
+            cat > .env <<EOF
+            MYSQL_ROOT_PASSWORD=${{ secrets.MYSQL_ROOT_PASSWORD }}
+            MYSQL_DATABASE=${{ secrets.MYSQL_DATABASE }}
+            MYSQL_USER=${{ secrets.MYSQL_USER }}
+            MYSQL_PASSWORD=${{ secrets.MYSQL_PASSWORD }}
+
+            SPRING_DATASOURCE_URL=${{ secrets.SPRING_DATASOURCE_URL }}
+            SPRING_DATASOURCE_USERNAME=${{ secrets.SPRING_DATASOURCE_USERNAME }}
+            SPRING_DATASOURCE_PASSWORD=${{ secrets.SPRING_DATASOURCE_PASSWORD }}
+            SPRING_DATASOURCE_DRIVER_CLASS_NAME=com.mysql.cj.jdbc.Driver
+
+            SPRING_JPA_HIBERNATE_DDL_AUTO=update
+            SPRING_JPA_SHOW_SQL=true
+            SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL=true
+            SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT=org.hibernate.dialect.MySQL8Dialect
+            SPRING_DEVTOOLS_RESTART_ENABLED=false
+
+            CORS_ALLOWED_ORIGINS=${{ secrets.CORS_ALLOWED_ORIGINS }}
+
+            SPRING_PROFILES_ACTIVE=prod
+
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            JWT_ACCESS_TOKEN_EXP_MS=${{ secrets.JWT_ACCESS_TOKEN_EXP_MS }}
+            JWT_REFRESH_TOKEN_EXP_MS=${{ secrets.JWT_REFRESH_TOKEN_EXP_MS }}
+
+            GOOGLE_API_ID=${{ secrets.GOOGLE_API_ID }}
+            GOOGLE_API_SECRET=${{ secrets.GOOGLE_API_SECRET }}
+            NAVER_API_ID=${{ secrets.NAVER_API_ID }}
+            NAVER_API_SECRET=${{ secrets.NAVER_API_SECRET }}
+            KAKAO_API_ID=${{ secrets.KAKAO_API_ID }}
+            KAKAO_API_SECRET=${{ secrets.KAKAO_API_SECRET }}
+
+            TMDB_API_KEY=${{ secrets.TMDB_API_KEY }}
+            TMDB_API_BASE_URL=https://api.themoviedb.org/3
+            TMDB_API_IMAGE_BASE_URL=https://image.tmdb.org/t/p/w500
+
+            REACT_APP_API_BASE_URL=${{ secrets.REACT_APP_API_BASE_URL }}
+            EOF
+            echo ".env 파일 작성 완료"
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /app/
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d
+            docker image prune -f
+            docker compose -f docker-compose.prod.yml ps
