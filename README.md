@@ -10,6 +10,7 @@
 ![Nginx](https://img.shields.io/badge/Nginx-1.25-009639?logo=nginx&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-4-38B2AC?logo=tailwind-css&logoColor=white)
+![AWS EC2](https://img.shields.io/badge/AWS-EC2-FF9900?logo=amazon-aws&logoColor=white)
 
 ### 멋쟁이사자처럼 백엔드 부트캠프 19기: Java <br> 사이드 프로젝트
 
@@ -75,6 +76,7 @@ TMDB 연동, 소셜 로그인, 리뷰/좋아요, 내가 본 영화 관리, 관�
 - **Docker**
 - **Docker Compose**
 - **Nginx** 1.25 (alpine)
+- **AWS EC2** (t3.micro)
 - **GitHub Actions**
 
 ### external API
