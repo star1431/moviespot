@@ -81,7 +81,12 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
                 Map<String, Object> response = oAuth2User.getAttribute("response");
                 yield response != null ? (String) response.get("id") : null;
             }
-            case "kakao" -> String.valueOf(oAuth2User.getAttribute("id"));
+            case "kakao" -> {
+                // Kakao의 id는 보통 Long으로 내려오며, getAttribute의 제네릭 타입 추론/오버로드로 인해
+                // String.valueOf(...)가 char[] 오버로드로 선택되어 ClassCastException이 날 수 있음.
+                Object id = oAuth2User.getAttributes().get("id");
+                yield id != null ? id.toString() : null;
+            }
             default -> throw new OAuth2AuthenticationException("지원하지 않는 OAuth 제공자입니다: " + registrationId);
         };
     }
