@@ -49,7 +49,6 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
           port: ${{ secrets.EC2_PORT }}
-          source: "docker-compose.prod.yml,nginx.conf"
           script: |
             cd /app/
             echo ".env 파일 작성중 ...."
