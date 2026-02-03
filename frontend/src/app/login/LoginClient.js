@@ -9,6 +9,7 @@ import LoadingSpinner from '@/components/ui/LoadingSpinner';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import { Film } from 'lucide-react';
+import { getBackendOrigin } from '@/lib/api/config';
 
 export default function LoginClient() {
   const searchParams = useSearchParams();
@@ -66,11 +67,8 @@ export default function LoginClient() {
   };
 
   const handleSocialLogin = (provider) => {
-    const RAW_BASE =
-      process.env.REACT_APP_API_BASE_URL ||
-      'http://localhost:8080';
-    // 백엔드 OAuth 엔드포인트로 리다이렉트 (origin 기준)
-    window.location.href = `${RAW_BASE}/oauth2/authorization/${provider}`;
+    const backendOrigin = getBackendOrigin();
+    window.location.href = `${backendOrigin}/oauth2/authorization/${provider}`;
   };
 
   return (

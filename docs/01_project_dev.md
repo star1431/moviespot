@@ -69,6 +69,11 @@ docker compose -f docker-compose.dev.yml up -d
 docker compose -f docker-compose.dev.yml ps
 ```
 
+```bash
+# 빌드 및 실행 동시
+docker compose -f docker-compose.dev.yml up -d --build
+```
+
 * 이후 브라우저에서 `http://localhost` 접속하여 확인
 
 
